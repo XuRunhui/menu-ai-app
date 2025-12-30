@@ -1,0 +1,1 @@
+"""Menu AI Backend Application."""
