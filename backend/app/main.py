@@ -1,12 +1,14 @@
-"""FastAPI main application with menu parsing endpoint."""
+"""FastAPI main application with menu parsing and restaurant endpoints."""
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+from typing import Optional
 
 from app.core.config import settings
 from app.services.vision_parser import parse_menu_image
 from app.models.menu import ParsedMenu
+from app.api.v1.endpoints import restaurant, google_places
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -28,6 +30,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include routers
+app.include_router(
+    restaurant.router,
+    prefix="/api/v1/restaurant",
+    tags=["restaurant"]
+)
+
+app.include_router(
+    google_places.router,
+    prefix="/api/v1/places",
+    tags=["places"]
+)
+
 
 @app.get("/")
 async def root() -> dict[str, str]:
@@ -40,14 +55,19 @@ async def root() -> dict[str, str]:
 
 
 @app.post("/api/v1/menu/parse", response_model=ParsedMenu)
-async def parse_menu(image: UploadFile = File(...)) -> ParsedMenu:
-    """Parse a menu image into structured JSON.
+async def parse_menu(
+    image: UploadFile = File(...),
+    target_language: Optional[str] = Form(None)
+) -> ParsedMenu:
+    """Parse a menu image into structured JSON with optional translation.
 
     Args:
         image: Uploaded image file (JPEG, PNG, etc.).
+        target_language: Target language for translation (e.g., "English", "Chinese", "Japanese").
+                        If not provided, only parses without translation.
 
     Returns:
-        Structured menu data with categories and items.
+        Structured menu data with categories and items in original and optionally translated languages.
 
     Raises:
         HTTPException: If parsing fails or API key is missing.
@@ -61,15 +81,20 @@ async def parse_menu(image: UploadFile = File(...)) -> ParsedMenu:
         # Read image bytes
         image_bytes = await image.read()
         logger.info(f"Received image: {image.filename}, size: {len(image_bytes)} bytes")
+        if target_language:
+            logger.info(f"Target language: {target_language}")
 
         # Parse with Gemini
         parsed_menu = parse_menu_image(
             image_source=image_bytes,
             api_key=settings.gemini_api_key,
+            target_language=target_language,
             model_name=settings.gemini_model
         )
 
         logger.info(f"Successfully parsed menu with {len(parsed_menu.menu)} categories")
+        if parsed_menu.detected_language:
+            logger.info(f"Detected language: {parsed_menu.detected_language}")
         return parsed_menu
 
     except ValueError as e:

@@ -1,13 +1,24 @@
 # Menu AI - AI-Powered Menu Parser
 
-A web application that uses Gemini Vision API to parse restaurant menu images into structured data.
+A web application that uses Gemini Vision API to parse restaurant menu images into structured data with multilingual support and Yelp integration for restaurant insights.
 
 ## Features
 
-- Upload menu images (JPEG, PNG, etc.)
-- AI-powered text extraction and structuring
+### Phase 1: Multilingual Menu Parsing ✅
+- Upload menu images in any language (JPEG, PNG, etc.)
+- Automatic language detection (Japanese, Chinese, Korean, Spanish, etc.)
+- AI-powered translation to 12+ languages
+- Native price handling (八百円, 십오 원, etc.)
+- Toggle between original and translated text
 - Clean, responsive web interface
 - Real-time parsing feedback
+
+### Phase 1.5: Restaurant Data Collection ✅
+- Search restaurants by name and location via Yelp API
+- View restaurant details (rating, reviews, photos)
+- AI-powered popular dish extraction from reviews
+- Photo gallery from Yelp
+- Integration with menu parsing for contextual insights
 
 ## Quick Start
 
@@ -16,11 +27,13 @@ A web application that uses Gemini Vision API to parse restaurant menu images in
 **Option A - With Docker (Recommended):**
 - Docker and Docker Compose
 - Gemini API key ([Get one here](https://aistudio.google.com/app/apikey))
+- Yelp Fusion API key ([Get one here](https://www.yelp.com/developers/v3/manage_app)) - Optional for Phase 1.5 features
 
 **Option B - Without Docker:**
 - Python 3.11+ with `uv` package manager
 - Node.js 20+
 - Gemini API key ([Get one here](https://aistudio.google.com/app/apikey))
+- Yelp Fusion API key ([Get one here](https://www.yelp.com/developers/v3/manage_app)) - Optional for Phase 1.5 features
 
 ### Setup with Docker
 
@@ -34,10 +47,13 @@ A web application that uses Gemini Vision API to parse restaurant menu images in
    cp .env.example .env
    ```
 
-3. Add your Gemini API key to `.env`:
+3. Add your API keys to `.env`:
    ```
-   GEMINI_API_KEY=your_actual_api_key_here
+   GEMINI_API_KEY=your_actual_gemini_api_key_here
+   YELP_API_KEY=your_actual_yelp_api_key_here
    ```
+
+   Note: The app will work without a Yelp API key, but Phase 1.5 restaurant features will be disabled.
 
 4. Start the application:
    ```bash
@@ -61,10 +77,13 @@ A web application that uses Gemini Vision API to parse restaurant menu images in
    cp .env.example .env
    ```
 
-3. Add your Gemini API key to `.env`:
+3. Add your API keys to `.env`:
    ```
-   GEMINI_API_KEY=your_actual_api_key_here
+   GEMINI_API_KEY=your_actual_gemini_api_key_here
+   YELP_API_KEY=your_actual_yelp_api_key_here
    ```
+
+   Note: The app will work without a Yelp API key, but Phase 1.5 restaurant features will be disabled.
 
 4. **Start the Backend** (Terminal 1):
    ```bash

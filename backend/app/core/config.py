@@ -10,6 +10,8 @@ class Settings(BaseSettings):
 
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     gemini_model: str = "gemini-2.5-flash"
+    yelp_api_key: str = os.getenv("YELP_API_KEY", "")
+    google_places_api_key: str = os.getenv("GOOGLE_PLACES_API_KEY", "")
     cors_origins: list[str] = ["http://localhost:3000"]
 
     class Config:
