@@ -18,7 +18,7 @@ Thank you for your interest in contributing to Menu AI! This document provides g
    ```
 
 4. Choose your development method:
-   - **With Docker**: `docker-compose up`
+   - **With Docker**: `docker compose up`
    - **Without Docker**: See [GETTING_STARTED.md](GETTING_STARTED.md)
 
 ## Code Style

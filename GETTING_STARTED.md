@@ -82,7 +82,7 @@ When you have Docker installed:
 
 ```bash
 cd /home/ruxu/langchain/menu-ai-app
-docker-compose up
+docker compose up
 ```
 
 That's it! Everything runs automatically.

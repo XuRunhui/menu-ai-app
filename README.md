@@ -57,7 +57,7 @@ A web application that uses Gemini Vision API to parse restaurant menu images in
 
 4. Start the application:
    ```bash
-   docker-compose up
+   docker compose up
    ```
 
 5. Open your browser:
@@ -264,7 +264,7 @@ According to the plan, Phase 2 will add:
 **Parsing errors:**
 - Ensure image is clear and readable
 - Try a different menu image (use `sample-menu.png` for testing)
-- With Docker: Check backend logs: `docker-compose logs backend`
+- With Docker: Check backend logs: `docker compose logs backend`
 - Without Docker: Check the terminal where uvicorn is running
 
 **uv command not found:**

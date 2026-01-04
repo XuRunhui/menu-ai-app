@@ -19,7 +19,7 @@ FastAPI backend for AI-powered menu parsing using Gemini Vision API.
 ### With Docker Compose (Recommended)
 From the project root:
 ```bash
-docker-compose up backend
+docker compose up backend
 ```
 
 ### Without Docker
