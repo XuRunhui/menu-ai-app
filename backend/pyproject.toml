@@ -11,6 +11,11 @@ dependencies = [
     "google-genai>=0.3.0",
     "requests>=2.31.0",
     "python-multipart>=0.0.6",
+    # Multi-source data collection
+    "duckduckgo-search>=4.0.0",
+    # RAG & embeddings
+    "sentence-transformers>=2.2.0",
+    "numpy>=1.24.0",
 ]
 
 [dependency-groups]

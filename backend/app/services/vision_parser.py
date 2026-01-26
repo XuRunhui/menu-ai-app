@@ -35,8 +35,16 @@ Your tasks:
    - price_original: the EXACT price text from image (e.g., "八百円", "$12.50", "¥800")
    - currency: currency symbol or code (e.g., "$", "¥", "€", "USD", "JPY")
    - description: ingredient or preparation text in original language (if present)
-5. Preserve the order from top to bottom and left to right
-6. Skip irrelevant text (phone numbers, URLs, social media, etc.)
+5. Detect SYMBOLS and INDICATORS next to dishes:
+   - spicy_level: Number of chili peppers 🌶️ or asterisks * (0-5, null if not specified)
+   - allergens: List from ["nuts", "peanuts", "dairy", "milk", "gluten", "wheat", "shellfish", "fish", "soy", "eggs", "sesame"]
+     * Look for symbols: 🥜 (nuts), 🥛 (dairy), 🌾 (gluten), 🦐 (shellfish), 🥚 (eggs)
+     * Look for text: "Contains nuts", "Gluten-free", "Dairy-free"
+   - dietary_tags: List from ["vegetarian", "vegan", "gluten-free", "halal", "kosher", "organic"]
+     * Look for symbols: (V) = vegetarian, (VG) = vegan, (GF) = gluten-free
+     * Look for text markers or badges
+6. Preserve the order from top to bottom and left to right
+7. Skip irrelevant text (phone numbers, URLs, social media, etc.)
 
 PRICE HANDLING RULES:
 - If price is in words/native language (e.g., "八百円"=800yen, "十块"=10yuan), convert to number
@@ -85,7 +93,10 @@ Return a **valid JSON** object with this EXACT structure:
           "price": 12.5,
           "price_original": "¥1250",
           "currency": "¥",
-          "description": "Description in original language","""
+          "description": "Description in original language",
+          "spicy_level": 3,
+          "allergens": ["shellfish", "soy"],
+          "dietary_tags": ["gluten-free"],"""
 
     if target_language:
         json_structure += """

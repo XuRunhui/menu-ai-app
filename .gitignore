@@ -86,3 +86,7 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+
+langchain/
+magicui/
