@@ -138,3 +138,104 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceDetailsResp
 
   return response.json();
 }
+
+export interface BuildKnowledgeBaseRequest {
+  restaurant_name: string;
+  location: string;
+  place_id?: string;
+}
+
+export interface BuildKnowledgeBaseResponse {
+  status: string;
+  total_documents: number;
+  menu_items?: number;
+  review_mentions?: number;
+  unique_dishes?: number;
+  sources?: string[];
+  build_time_seconds?: number;
+}
+
+/**
+ * Build the RAG knowledge base for a restaurant.
+ * This is typically fired in the background after place selection.
+ *
+ * @param req - Restaurant name, location, and optional place_id
+ * @returns Knowledge base build status
+ * @throws Error if the API request fails
+ */
+export async function buildKnowledgeBase(req: BuildKnowledgeBaseRequest): Promise<BuildKnowledgeBaseResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/recommendation/build-knowledge-base`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP error ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get LLM-generated context for a specific dish, including flavor predictions
+ * and curated review excerpts.
+ *
+ * @param dishName - The dish name to look up
+ * @param restaurantName - Restaurant name (required by the backend)
+ * @param location - Restaurant location/address (required by the backend)
+ * @returns Dish context with description, review excerpts, and taste/texture data
+ * @throws Error if the API request fails
+ */
+export async function getDishContext(
+  dishName: string,
+  restaurantName: string,
+  location: string
+): Promise<import('./types').DishContextResponse> {
+  const params = new URLSearchParams({
+    restaurant_name: restaurantName,
+    location,
+  });
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/recommendation/dish/${encodeURIComponent(dishName)}?${params}`
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP error ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export interface DishImageResponse {
+  image_url: string | null;
+  cached: boolean;
+}
+
+/**
+ * Fetch (and cache) a dish image via DuckDuckGo image search.
+ * On first call for a dish the backend performs the web search, downloads
+ * the image, and stores it locally. Subsequent calls are served from cache.
+ *
+ * @param dishName - Name of the dish
+ * @param restaurantName - Restaurant name used to scope the image search
+ * @returns Image URL pointing to the locally-cached file, or null if not found
+ */
+export async function getDishImage(
+  dishName: string,
+  restaurantName?: string
+): Promise<DishImageResponse> {
+  const params = new URLSearchParams({ dish_name: dishName });
+  if (restaurantName) params.set('restaurant_name', restaurantName);
+
+  const response = await fetch(`${API_BASE_URL}/api/v1/dish-image?${params}`);
+
+  if (!response.ok) {
+    return { image_url: null, cached: false };
+  }
+
+  return response.json();
+}

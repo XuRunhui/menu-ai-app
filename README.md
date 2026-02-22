@@ -20,6 +20,12 @@ A web application that uses Gemini Vision API to parse restaurant menu images in
 - Photo gallery from Yelp
 - Integration with menu parsing for contextual insights
 
+### Phase 2: RAG Recommendations ✅
+- Build a multi-source knowledge base (Google Places, DuckDuckGo, Yelp)
+- Get dish recommendations with semantic search
+- Optional taste and texture prediction with Gemini
+- Dish context endpoint for menu descriptions and review excerpts
+
 ## Quick Start
 
 ### Prerequisites
@@ -28,12 +34,14 @@ A web application that uses Gemini Vision API to parse restaurant menu images in
 - Docker and Docker Compose
 - Gemini API key ([Get one here](https://aistudio.google.com/app/apikey))
 - Yelp Fusion API key ([Get one here](https://www.yelp.com/developers/v3/manage_app)) - Optional for Phase 1.5 features
+- Google Places API key ([Get one here](https://console.cloud.google.com/apis/credentials)) - Recommended for RAG sources
 
 **Option B - Without Docker:**
 - Python 3.11+ with `uv` package manager
 - Node.js 20+
 - Gemini API key ([Get one here](https://aistudio.google.com/app/apikey))
 - Yelp Fusion API key ([Get one here](https://www.yelp.com/developers/v3/manage_app)) - Optional for Phase 1.5 features
+- Google Places API key ([Get one here](https://console.cloud.google.com/apis/credentials)) - Recommended for RAG sources
 
 ### Setup with Docker
 
@@ -51,6 +59,7 @@ A web application that uses Gemini Vision API to parse restaurant menu images in
    ```
    GEMINI_API_KEY=your_actual_gemini_api_key_here
    YELP_API_KEY=your_actual_yelp_api_key_here
+   GOOGLE_PLACES_API_KEY=your_google_places_api_key_here
    ```
 
    Note: The app will work without a Yelp API key, but Phase 1.5 restaurant features will be disabled.
@@ -81,6 +90,7 @@ A web application that uses Gemini Vision API to parse restaurant menu images in
    ```
    GEMINI_API_KEY=your_actual_gemini_api_key_here
    YELP_API_KEY=your_actual_yelp_api_key_here
+   GOOGLE_PLACES_API_KEY=your_google_places_api_key_here
    ```
 
    Note: The app will work without a Yelp API key, but Phase 1.5 restaurant features will be disabled.
@@ -139,6 +149,21 @@ Run the script in two separate terminals (once for backend, once for frontend).
 4. View the structured results
 
 You can use the sample menu at `sample-menu.png` for testing.
+
+### Running Backend Tests
+
+Unit tests:
+```bash
+pytest backend/tests -m "not integration"
+```
+
+Integration tests (requires API keys and opt-in flag):
+```bash
+export RUN_INTEGRATION_TESTS=1
+export GEMINI_API_KEY="your_key"
+export GOOGLE_PLACES_API_KEY="your_key"
+pytest backend/tests/integration -v
+```
 
 ## Project Structure
 

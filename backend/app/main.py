@@ -1,14 +1,17 @@
 """FastAPI main application with menu parsing and restaurant endpoints."""
 
+from pathlib import Path
+
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import logging
 from typing import Optional
 
 from app.core.config import settings
 from app.services.vision_parser import parse_menu_image
 from app.models.menu import ParsedMenu
-from app.api.v1.endpoints import restaurant, google_places
+from app.api.v1.endpoints import restaurant, google_places, recommendation, dish_image
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -42,6 +45,24 @@ app.include_router(
     prefix="/api/v1/places",
     tags=["places"]
 )
+
+app.include_router(
+    recommendation.router,
+    prefix="/api/v1/recommendation",
+    tags=["recommendation"]
+)
+
+app.include_router(
+    dish_image.router,
+    prefix="/api/v1/dish-image",
+    tags=["dish-image"]
+)
+
+# Serve locally-cached dish images as static files.
+# Must come AFTER all API routers so it doesn't shadow /api/* paths.
+_images_dir = Path(__file__).resolve().parents[1] / ".cache" / "dish_images"
+_images_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/dish-images", StaticFiles(directory=str(_images_dir)), name="dish-images")
 
 
 @app.get("/")

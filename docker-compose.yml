@@ -8,6 +8,7 @@ services:
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY}
+      - YELP_API_KEY=${YELP_API_KEY}
       - FIRESTORE_EMULATOR_HOST=firestore:8080
     volumes:
       - ./backend/app:/app/app

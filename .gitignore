@@ -90,3 +90,6 @@ temp/
 
 langchain/
 magicui/
+*.jpg
+*.png
+*.webp

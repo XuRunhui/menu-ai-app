@@ -87,7 +87,10 @@ class RAGRecommendationEngine:
         self,
         gemini_api_key: str,
         google_places_api_key: Optional[str] = None,
-        yelp_api_key: Optional[str] = None
+        yelp_api_key: Optional[str] = None,
+        model_name: str = "gemini-2.0-flash-exp",
+        cache_enabled: bool = True,
+        cache_ttl_seconds: int = 604800
     ):
         """Initialize RAG engine with API keys.
 
@@ -95,12 +98,18 @@ class RAGRecommendationEngine:
             gemini_api_key: Google Gemini API key (required)
             google_places_api_key: Google Places API key (optional)
             yelp_api_key: Yelp API key (optional)
+            model_name: Gemini model name for LLM enhancement
+            cache_enabled: Enable local caching for multi-source data collection
+            cache_ttl_seconds: Cache TTL in seconds
 
         Example:
             >>> engine = RAGRecommendationEngine(
             ...     gemini_api_key="AIza...",
             ...     google_places_api_key="AIza...",
-            ...     yelp_api_key="abc..."
+            ...     yelp_api_key="abc...",
+            ...     model_name="gemini-2.5-flash",
+            ...     cache_enabled=True,
+            ...     cache_ttl_seconds=604800
             ... )
             >>> engine.knowledge_base_built
             False
@@ -108,9 +117,12 @@ class RAGRecommendationEngine:
         self.vector_store = VectorStore()
         self.gemini_client = genai.Client(api_key=gemini_api_key)
         self.gemini_api_key = gemini_api_key
+        self.model_name = model_name
         self.aggregator = MultiSourceAggregator(
             google_api_key=google_places_api_key,
-            yelp_api_key=yelp_api_key
+            yelp_api_key=yelp_api_key,
+            cache_enabled=cache_enabled,
+            cache_ttl_seconds=cache_ttl_seconds
         )
         self.knowledge_base_built = False
         self.restaurant_name = None
@@ -547,7 +559,7 @@ Return ONLY a JSON array with enhanced reasons for each dish:
 ]"""
 
             response = self.gemini_client.models.generate_content(
-                model="gemini-2.0-flash-exp",
+                model=self.model_name,
                 contents=[types.Part.from_text(text=prompt)]
             )
 

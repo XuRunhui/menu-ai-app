@@ -2,11 +2,15 @@
 
 import asyncio
 import logging
+import re
+import copy
+from datetime import datetime, timezone
 from typing import Optional
 
 from app.services.google_places_service import GooglePlacesService
 from .ddgs_collector import DDGSCollector
 from .yelp_collector import YelpCollector
+from .cache_store import LocalCacheStore
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +44,10 @@ class MultiSourceAggregator:
     def __init__(
         self,
         google_api_key: Optional[str] = None,
-        yelp_api_key: Optional[str] = None
+        yelp_api_key: Optional[str] = None,
+        cache_enabled: bool = True,
+        cache_ttl_seconds: int = 604800,
+        cache_store: Optional[LocalCacheStore] = None
     ):
         """Initialize aggregator with API keys.
 
@@ -63,6 +70,11 @@ class MultiSourceAggregator:
         self.google = GooglePlacesService(google_api_key) if google_api_key else None
         self.ddgs = DDGSCollector()
         self.yelp = YelpCollector(yelp_api_key) if yelp_api_key else None
+        self.cache_store = cache_store
+        if cache_enabled:
+            self.cache_store = cache_store or LocalCacheStore(
+                default_ttl_seconds=cache_ttl_seconds
+            )
 
         # Log which sources are available
         available = []
@@ -97,6 +109,21 @@ class MultiSourceAggregator:
         """
         logger.info(f"Starting multi-source collection for {restaurant_name}, {location}")
 
+        cache_key = self._build_cache_key(restaurant_name, location, place_id)
+        if self.cache_store:
+            cached_entry = self.cache_store.get(cache_key)
+            if cached_entry:
+                cached_data = copy.deepcopy(cached_entry.data)
+                cached_meta = cached_data.get("metadata", {})
+                cached_meta["cache_hit"] = True
+                cached_meta["cached_at"] = datetime.fromtimestamp(
+                    cached_entry.cached_at,
+                    tz=timezone.utc
+                ).isoformat()
+                cached_data["metadata"] = cached_meta
+                logger.info(f"Cache hit for {cache_key}")
+                return cached_data
+
         # Run all collectors in parallel
         tasks = []
 
@@ -113,7 +140,16 @@ class MultiSourceAggregator:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Aggregate results
-        return self._aggregate_results(results)
+        aggregated = self._aggregate_results(results)
+        aggregated_meta = aggregated.get("metadata", {})
+        aggregated_meta["cache_hit"] = False
+        aggregated_meta["cached_at"] = datetime.now(tz=timezone.utc).isoformat()
+        aggregated["metadata"] = aggregated_meta
+
+        if self.cache_store:
+            self.cache_store.set(cache_key, aggregated)
+
+        return aggregated
 
     async def _safe_collect_google(self, place_id: str) -> dict:
         """Safely collect from Google Places."""
@@ -301,6 +337,15 @@ class MultiSourceAggregator:
                         **image,
                         "_source": "ddgs"
                     })
+            # Handle Yelp data
+            elif source == "Yelp":
+                photos = data.get("photos", [])
+                for photo_url in photos:
+                    aggregated["images"].append({
+                        "url": photo_url,
+                        "source": "yelp",
+                        "type": "restaurant_photo"
+                    })
 
         # Deduplicate
         aggregated["reviews"] = self._deduplicate_reviews(aggregated["reviews"])
@@ -324,15 +369,16 @@ class MultiSourceAggregator:
         Returns:
             Deduplicated list
         """
-        # Simple deduplication by first 100 characters
-        # TODO: Use text similarity (cosine, Jaccard) for better deduplication
+        # Quick deduplication by normalized first 120 characters.
         seen = set()
         unique = []
 
         for review in reviews:
-            text = review.get("text", "")[:100]  # First 100 chars
-            if text and text not in seen:
-                seen.add(text)
+            text = review.get("text", "")
+            normalized = self._normalize_review_text(text)
+            key = normalized[:120]
+            if key and key not in seen:
+                seen.add(key)
                 unique.append(review)
 
         removed = len(reviews) - len(unique)
@@ -340,6 +386,12 @@ class MultiSourceAggregator:
             logger.info(f"Removed {removed} duplicate reviews")
 
         return unique
+
+    def _normalize_review_text(self, text: str) -> str:
+        """Normalize text for basic deduplication."""
+        normalized = re.sub(r"[^a-z0-9\s]", "", text.lower())
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        return normalized
 
     def _deduplicate_images(self, images: list) -> list:
         """Remove duplicate images by URL.
@@ -364,3 +416,10 @@ class MultiSourceAggregator:
             logger.info(f"Removed {removed} duplicate images")
 
         return unique
+
+    def _build_cache_key(self, restaurant_name: str, location: str, place_id: Optional[str]) -> str:
+        key_base = f"{restaurant_name}::{location}"
+        if place_id:
+            key_base = f"{key_base}::{place_id}"
+        normalized = re.sub(r"[^a-z0-9]+", "-", key_base.lower()).strip("-")
+        return normalized
