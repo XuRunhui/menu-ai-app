@@ -7,7 +7,7 @@ real thing. Each is read separately and labelled, then combined — see services
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.models.menu import ParsedMenu
 
@@ -54,9 +54,27 @@ class ReviewDish(BaseModel):
     mention_count: int = Field(1, ge=0)
 
 
+# Merging compares dishes pairwise, so its time grows with the square of the dish count: 4 menus
+# of 3,000 dishes took 192 s of CPU. Real restaurants stay far below these; the largest menu read
+# so far was 61 dishes.
+MAX_COMBINED_DISHES = 800
+MAX_DISH_TEXT = 2000
+
+
 class CombineRequest(BaseModel):
     sources: list[SourcedMenu] = Field(default_factory=list, max_length=12)
     review_dishes: list[ReviewDish] = Field(default_factory=list, max_length=40)
+
+    @model_validator(mode="after")
+    def _within_limits(self) -> "CombineRequest":
+        items = [item for source in self.sources for category in source.menu.menu for item in category.items]
+        if len(items) > MAX_COMBINED_DISHES:
+            raise ValueError(f"at most {MAX_COMBINED_DISHES} dishes can be combined at once")
+        for item in items:
+            texts = (item.name, item.name_translated, item.description, item.description_translated)
+            if len(item.name) > 300 or any(text and len(text) > MAX_DISH_TEXT for text in texts):
+                raise ValueError("a dish's name or description is too long")
+        return self
 
 
 class SourceCount(BaseModel):

@@ -35,6 +35,8 @@ from urllib.robotparser import RobotFileParser
 
 import requests
 
+from app.core.rate_limit import DemoCapReached
+
 from app.models.menu import ParsedMenu
 from app.models.menu_sources import SourceReport, SourceResult, SourcedMenu
 from app.services.menu_sources.quality import is_legible, item_count
@@ -134,11 +136,11 @@ def _check_public(url: str) -> None:
             raise UnsafeAddress(url)
 
 
-def fetch(url: str, max_bytes: int = MAX_BYTES) -> Fetched:
+def fetch(url: str, max_bytes: int = MAX_BYTES, user_agent: str = USER_AGENT) -> Fetched:
     """GET a public URL, following redirects by hand so each hop is checked."""
     for _ in range(MAX_REDIRECTS + 1):
         _check_public(url)
-        response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT,
+        response = requests.get(url, headers={"User-Agent": user_agent}, timeout=TIMEOUT,
                                 allow_redirects=False, stream=True)
         if response.is_redirect and response.headers.get("location"):
             url = urljoin(url, response.headers["location"])
@@ -417,6 +419,8 @@ def _parse_text(text: str, api_key: str, target_language: Optional[str]) -> Opti
     def parse(piece: str) -> Optional[ParsedMenu]:
         try:
             return parse_menu_text(piece, api_key, target_language)
+        except DemoCapReached:
+            raise  # the demo's AI budget, not this page: say so instead of "no menu here"
         except Exception as exc:
             logger.info("website: couldn't parse part of a menu: %s", exc)
             return None
@@ -441,6 +445,8 @@ def _parse_images(images: list[bytes], api_key: str, target_language: Optional[s
             # otherwise paid for every page to be read again.
             return parse_menu_image(image_source=image, api_key=api_key,
                                     target_language=target_language, cache=True)
+        except DemoCapReached:
+            raise
         except Exception as exc:
             logger.info("website: couldn't read a menu image: %s", exc)
             return None
@@ -602,6 +608,8 @@ def _safe_read(fetched: Fetched, api_key: str, target_language: Optional[str],
                from_menu_link: bool) -> Optional[ParsedMenu]:
     try:
         return read_document(fetched, api_key, target_language, from_menu_link)
+    except DemoCapReached:
+        raise
     except Exception as exc:
         logger.info("website: couldn't read %s: %s", fetched.url, exc)
         return None

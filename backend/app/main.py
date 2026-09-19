@@ -16,7 +16,7 @@ import logging
 from typing import Optional
 
 from app.core.config import settings
-from app.core.rate_limit import enforce_demo_limits
+from app.core.rate_limit import claim_menu_read, enforce_demo_limits
 from app.services.vision_parser import parse_menu_image
 from app.models.menu import ParsedMenu
 from app.api.v1.endpoints import (assistant, auth, library, menus, menu_sources, restaurant,
@@ -152,7 +152,7 @@ app.mount("/dish-images", StaticFiles(directory=str(_images_dir)), name="dish-im
 
 
 # Bumped when a change matters for debugging a deployment; K_REVISION is set by Cloud Run.
-BUILD_MARKER = "2026-09-18 tour+dish-insights"
+BUILD_MARKER = "2026-09-18 tour+security-limits"
 
 
 @app.get("/")
@@ -212,6 +212,7 @@ async def parse_menu(
             parsed_menu = ParsedMenu(**cached.parsed_menu, menu_id=cached.id)
         else:
             await enforce_demo_limits(request)
+            claim_menu_read()  # the site-wide ceiling, whoever is asking
             if not settings.deepseek_api_key:
                 msg = "DEEPSEEK_API_KEY environment variable not set"
                 logger.error(msg)

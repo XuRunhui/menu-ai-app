@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends
 from fastapi.concurrency import run_in_threadpool
 
-from app.core.rate_limit import enforce_demo_limits
+from app.core.rate_limit import enforce_combine_limit, enforce_demo_limits
 from app.models.menu_sources import CombinedMenu, CombineRequest, SourceRequest, SourceResult
 from app.services.menu_sources.gather import read_source
 from app.services.menu_sources.merge import combine
@@ -26,7 +26,7 @@ async def read_menu_source(kind: Literal["website"],
     return await run_in_threadpool(read_source, kind, request.place_id, request.target_language)
 
 
-@router.post("/combine", response_model=CombinedMenu)
+@router.post("/combine", response_model=CombinedMenu, dependencies=[Depends(enforce_combine_limit)])
 def combine_menus(request: CombineRequest) -> CombinedMenu:
     """Merge per-source menus (and review dishes) into one menu with each dish's sources.
 
