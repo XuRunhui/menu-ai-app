@@ -3,6 +3,11 @@
 Note: This uses the legacy Places API endpoints which work with simple API keys.
 The new Places API (v1) requires different authentication and endpoints.
 For this implementation, we use the legacy API which is still fully supported.
+
+Place photos are deliberately not used. They added about 2% of menu dishes, cost a billed
+request per photo, came without the dish they were shown for, and Google's terms require crediting
+the photographer wherever one is displayed. Dish photos come from DuckDuckGo and Wikimedia
+Commons instead (see image_sources.py).
 """
 
 import requests
@@ -78,7 +83,7 @@ class GooglePlacesService:
             "input": query,
             "inputtype": "textquery",
             "fields": "place_id,name,formatted_address,rating,user_ratings_total,"
-                     "price_level,types,geometry,photos,business_status",
+                     "price_level,types,geometry,business_status",
             "key": self.api_key,
         }
 
@@ -128,9 +133,13 @@ class GooglePlacesService:
             status = data.get("status")
             results = data.get("results", [])
 
-            if status != "OK" and status != "ZERO_RESULTS":
-                logger.warning(f"Google Places API status: {status}")
+            if status not in ("OK", "ZERO_RESULTS"):
+                # e.g. REQUEST_DENIED (key restriction or API not enabled), OVER_QUERY_LIMIT
+                logger.warning(f"Google Places API status: {status} - {data.get('error_message', '')}")
+                return {"results": [], "status": status, "error_message": data.get("error_message", "")}
 
+            for result in results:
+                result.pop("photos", None)   # this app doesn't use Google place photos
             logger.info(f"Found {len(results)} places")
             return {"results": results, "status": status}
 
@@ -154,7 +163,7 @@ class GooglePlacesService:
         params = {
             "place_id": place_id,
             "fields": "place_id,name,rating,user_ratings_total,price_level,formatted_address,"
-                     "formatted_phone_number,opening_hours,website,photos,geometry,types,reviews",
+                     "formatted_phone_number,opening_hours,website,geometry,types,reviews",
             "key": self.api_key,
         }
 
@@ -179,22 +188,22 @@ class GooglePlacesService:
             logger.error(f"Failed to fetch place details: {e}")
             raise
 
-    def get_photo_url(self, photo_reference: str, max_width: int = 400) -> str:
-        """Get URL for a place photo.
+    def get_menu_fields(self, place_id: str) -> dict:
+        """Just what finding a menu needs: the name and the website.
 
-        Args:
-            photo_reference: Photo reference from place details.
-            max_width: Maximum width of the photo.
-
-        Returns:
-            Photo URL.
+        Narrower than get_place_details on purpose — no reviews or opening hours, so it bills at
+        the cheaper Place Details SKUs.
         """
-        return (
-            f"{GOOGLE_PLACES_API_BASE}/place/photo"
-            f"?maxwidth={max_width}"
-            f"&photoreference={photo_reference}"
-            f"&key={self.api_key}"
+        response = requests.get(
+            f"{GOOGLE_PLACES_API_BASE}/place/details/json",
+            params={"place_id": place_id, "fields": "place_id,name,website", "key": self.api_key},
+            timeout=10,
         )
+        response.raise_for_status()
+        data = response.json()
+        if data.get("status") != "OK":
+            raise ValueError(f"Failed to get place details: {data.get('status')}")
+        return data.get("result", {})
 
     def get_full_place_data(self, place_id: str) -> dict:
         """Get complete place data (details + reviews).
@@ -207,16 +216,6 @@ class GooglePlacesService:
         """
         place = self.get_place_details(place_id)
         reviews = place.get("reviews", [])
-
-        # Process photo URLs
-        photos = place.get("photos", [])
-        photo_urls = []
-        for photo in photos[:5]:  # Get up to 5 photos
-            photo_ref = photo.get("photo_reference")
-            if photo_ref:
-                photo_urls.append(self.get_photo_url(photo_ref, max_width=800))
-
-        place["photo_urls"] = photo_urls
 
         return {
             "place": place,

@@ -1,33 +1,56 @@
-"""Menu image parsing using Gemini 2.5 Vision API with multilingual support.
+"""Menu image parsing using the DeepSeek multimodal API with multilingual support.
 
 Supports automatic language detection and translation to any target language.
 """
 
 import json
-from google import genai
-from google.genai import types
+import logging
+
 import requests
 
 from app.models.menu import ParsedMenu
+from app.services.llm_client import LLMClient
+
+logger = logging.getLogger(__name__)
 
 
-def build_multilingual_prompt(target_language: str | None = None) -> str:
+def build_multilingual_prompt(target_language: str | None = None, medium: str = "image") -> str:
     """Build a prompt for multilingual menu parsing with optional translation.
 
     Args:
         target_language: Target language for translation (e.g., "English", "Chinese", "Spanish").
                         If None, only parse without translation.
+        medium: "image" for a photo of a menu, "text" for text taken from a web page or PDF. Both
+            produce the same JSON, so menus from either can be combined.
 
     Returns:
-        Formatted prompt string for Gemini.
+        Formatted prompt string for the LLM.
     """
-    base_prompt = """You are an expert at understanding restaurant menus in any language.
+    if medium == "text":
+        opening = """Below is text taken from a restaurant's web page or PDF. Extract a structured \
+representation of the dishes on its menu.
 
-Analyze the menu in this image and extract a structured representation of all the dishes.
+The page may also contain navigation links, opening hours, addresses, reviews and other text that \
+is not the menu: ignore all of it. Use only dishes that actually appear in the text; never add \
+dishes the page doesn't list. If the text contains no menu at all, return "menu": []. The text may \
+be one part of a longer menu, starting or ending mid-section: extract what is there.
+
+When a name, category or description is already written in the target language, set its \
+*_translated field to null rather than repeating it.
 
 Your tasks:
 1. Detect the language of the menu text automatically
-2. Read all visible text from the image (OCR) in the original language
+2. Find every dish in the text, keeping its name in the original language"""
+    else:
+        opening = """Analyze the menu in this image and extract a structured representation of all the dishes.
+
+Your tasks:
+1. Detect the language of the menu text automatically
+2. Read all visible text from the image (OCR) in the original language"""
+
+    base_prompt = """You are an expert at understanding restaurant menus in any language.
+
+""" + opening + """
 3. Identify and group the content into categories
 4. For each dish, extract:
    - name: the dish name in original language
@@ -35,8 +58,16 @@ Your tasks:
    - price_original: the EXACT price text from image (e.g., "八百円", "$12.50", "¥800")
    - currency: currency symbol or code (e.g., "$", "¥", "€", "USD", "JPY")
    - description: ingredient or preparation text in original language (if present)
-5. Preserve the order from top to bottom and left to right
-6. Skip irrelevant text (phone numbers, URLs, social media, etc.)
+5. Detect SYMBOLS and INDICATORS next to dishes:
+   - spicy_level: Number of chili peppers 🌶️ or asterisks * (0-5, null if not specified)
+   - allergens: List from ["nuts", "peanuts", "dairy", "milk", "gluten", "wheat", "shellfish", "fish", "soy", "eggs", "sesame"]
+     * Look for symbols: 🥜 (nuts), 🥛 (dairy), 🌾 (gluten), 🦐 (shellfish), 🥚 (eggs)
+     * Look for text: "Contains nuts", "Gluten-free", "Dairy-free"
+   - dietary_tags: List from ["vegetarian", "vegan", "gluten-free", "halal", "kosher", "organic"]
+     * Look for symbols: (V) = vegetarian, (VG) = vegan, (GF) = gluten-free
+     * Look for text markers or badges
+6. Preserve the order from top to bottom and left to right
+7. Skip irrelevant text (phone numbers, URLs, social media, etc.)
 
 PRICE HANDLING RULES:
 - If price is in words/native language (e.g., "八百円"=800yen, "十块"=10yuan), convert to number
@@ -85,7 +116,10 @@ Return a **valid JSON** object with this EXACT structure:
           "price": 12.5,
           "price_original": "¥1250",
           "currency": "¥",
-          "description": "Description in original language","""
+          "description": "Description in original language",
+          "spicy_level": 3,
+          "allergens": ["shellfish", "soy"],
+          "dietary_tags": ["gluten-free"],"""
 
     if target_language:
         json_structure += """
@@ -116,24 +150,21 @@ OTHER RULES:
     return base_prompt + translation_instruction + json_structure
 
 
-def load_image_part(image_source: str | bytes) -> types.Part:
-    """Load an image from URL, file path, or bytes into a Gemini Part.
+def load_image_bytes(image_source: str | bytes) -> bytes:
+    """Load an image from URL, file path, or bytes.
 
     Args:
         image_source: Either a URL (str starting with http), a file path (str), or raw bytes.
 
     Returns:
-        A Gemini Part object containing the image data.
+        Raw image bytes.
     """
     if isinstance(image_source, bytes):
-        image_bytes = image_source
-    elif isinstance(image_source, str) and image_source.startswith("http"):
-        image_bytes = requests.get(image_source).content
-    else:
-        with open(image_source, "rb") as f:
-            image_bytes = f.read()
-
-    return types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+        return image_source
+    if isinstance(image_source, str) and image_source.startswith("http"):
+        return requests.get(image_source, timeout=30).content
+    with open(image_source, "rb") as f:
+        return f.read()
 
 
 def safe_json_parse(text: str) -> dict:
@@ -194,16 +225,20 @@ def parse_menu_image(
     image_source: str | bytes,
     api_key: str,
     target_language: str | None = None,
-    model_name: str = "gemini-2.5-flash"
+    model_name: str | None = None,
+    cache: bool = False,
 ) -> ParsedMenu:
     """Parse a menu image into structured data with optional translation.
 
     Args:
         image_source: Image URL, file path, or raw bytes.
-        api_key: Gemini API key.
+        api_key: DeepSeek API key.
         target_language: Target language for translation (e.g., "English", "Chinese").
                         If None, only parse without translation.
-        model_name: Gemini model to use.
+        model_name: DeepSeek model to use (defaults to settings.deepseek_model).
+        cache: Reuse the answer for the same image bytes and language. Uploads have their own
+               cache by image hash (MenuParseCache); the website reader turns this on, since a
+               restaurant's menu images and PDF pages are the same on every visit.
 
     Returns:
         Parsed menu structure with categories and items in original and translated languages.
@@ -211,31 +246,48 @@ def parse_menu_image(
     Raises:
         ValueError: If the API response cannot be parsed as valid menu JSON.
     """
-    image_part = load_image_part(image_source)
+    image_bytes = load_image_bytes(image_source)
     prompt = build_multilingual_prompt(target_language)
 
-    client = genai.Client(api_key=api_key)
+    client = LLMClient(api_key=api_key, model_name=model_name)
+    result_text = client.generate(prompt, image_bytes=image_bytes, json_mode=True,
+                                  cache=cache, purpose="menu_image")
 
-    response = client.models.generate_content(
-        model=model_name,
-        contents=[
-            types.Content(
-                role="user",
-                parts=[
-                    types.Part.from_text(text=prompt),
-                    image_part
-                ]
-            )
-        ]
-    )
-
-    result_text = response.text.strip()
-
-    # Log raw response for debugging (first 1000 chars)
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.debug(f"Gemini raw response (first 1000 chars): {result_text[:1000]}")
+    logger.debug(f"LLM raw response (first 1000 chars): {result_text[:1000]}")
 
     parsed_json = safe_json_parse(result_text)
 
     return ParsedMenu(**parsed_json)
+
+
+# Enough for a long menu page; beyond this is almost always boilerplate, and the reply must fit
+# within the model's output budget.
+MAX_MENU_TEXT_CHARS = 24_000
+
+
+# One piece of a long menu can run to a few thousand output tokens; the app-wide default cap (8,192)
+# was cutting big menus off mid-JSON. deepseek-flash allows far more.
+MENU_TEXT_MAX_TOKENS = 16_000
+
+
+def parse_menu_text(
+    text: str,
+    api_key: str,
+    target_language: str | None = None,
+    model_name: str | None = None,
+) -> ParsedMenu:
+    """Parse menu text (from a restaurant's website or a PDF) into the same shape as a photo.
+
+    Cached by content: the text comes from the restaurant's own site rather than from Google, so
+    the same page is only ever paid for once.
+
+    Raises:
+        ValueError: If the model's reply is not valid menu JSON.
+    """
+    prompt = build_multilingual_prompt(target_language, medium="text")
+    prompt += "\n\nPAGE TEXT:\n" + text[:MAX_MENU_TEXT_CHARS]
+
+    client = LLMClient(api_key=api_key, model_name=model_name)
+    result_text = client.generate(prompt, json_mode=True, cache=True, purpose="website_menu",
+                                  max_tokens=MENU_TEXT_MAX_TOKENS)
+    return ParsedMenu(**safe_json_parse(result_text))

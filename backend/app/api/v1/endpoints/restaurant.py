@@ -1,6 +1,6 @@
 """Restaurant API endpoints for Yelp data collection."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 import logging
 
 from app.services.yelp_service import YelpService
@@ -14,12 +14,13 @@ from app.models.restaurant import (
     PopularDish,
 )
 from app.core.config import settings
+from app.core.rate_limit import enforce_demo_limits
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.post("/search", response_model=RestaurantSearchResponse)
+@router.post("/search", response_model=RestaurantSearchResponse, dependencies=[Depends(enforce_demo_limits)])
 async def search_restaurant(request: RestaurantSearchRequest):
     """Search for restaurants by name and location.
 
@@ -54,7 +55,7 @@ async def search_restaurant(request: RestaurantSearchRequest):
         raise HTTPException(status_code=500, detail=msg) from e
 
 
-@router.get("/{business_id}", response_model=RestaurantData)
+@router.get("/{business_id}", response_model=RestaurantData, dependencies=[Depends(enforce_demo_limits)])
 async def get_restaurant(business_id: str):
     """Get detailed restaurant data including reviews and popular dishes.
 
@@ -72,8 +73,8 @@ async def get_restaurant(business_id: str):
         logger.error(msg)
         raise HTTPException(status_code=500, detail=msg)
 
-    if not settings.gemini_api_key:
-        msg = "GEMINI_API_KEY environment variable not set"
+    if not settings.deepseek_api_key:
+        msg = "DEEPSEEK_API_KEY environment variable not set"
         logger.error(msg)
         raise HTTPException(status_code=500, detail=msg)
 
@@ -95,7 +96,7 @@ async def get_restaurant(business_id: str):
             logger.info(f"Extracting popular dishes from {len(review_texts)} reviews")
             popular_dishes = extract_popular_dishes(
                 review_texts,
-                settings.gemini_api_key,
+                settings.deepseek_api_key,
                 top_n=10
             )
             logger.info(f"Extracted {len(popular_dishes)} popular dishes")

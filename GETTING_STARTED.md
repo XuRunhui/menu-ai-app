@@ -26,10 +26,10 @@ Since you don't have Docker installed, use this method:
 
 ```bash
 # 1. Navigate to the app
-cd /home/ruxu/langchain/menu-ai-app
+cd /Users/xurunhui/Desktop/App/menu-ai-app
 
 # 2. Verify .env file has your API key
-cat .env  # Should show GEMINI_API_KEY=AIza...
+cat .env  # Should show DEEPSEEK_API_KEY=sk-...
 
 # 3. Install uv if needed
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -40,14 +40,14 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 **Terminal 1 - Backend:**
 ```bash
-cd /home/ruxu/langchain/menu-ai-app
+cd /Users/xurunhui/Desktop/App/menu-ai-app
 ./start-local.sh
 # Choose option 1 (Backend)
 ```
 
 **Terminal 2 - Frontend:**
 ```bash
-cd /home/ruxu/langchain/menu-ai-app
+cd /Users/xurunhui/Desktop/App/menu-ai-app
 ./start-local.sh
 # Choose option 2 (Frontend)
 ```
@@ -58,14 +58,14 @@ If the script doesn't work, run these commands directly:
 
 **Terminal 1 - Backend:**
 ```bash
-cd /home/ruxu/langchain/menu-ai-app/backend
+cd /Users/xurunhui/Desktop/App/menu-ai-app/backend
 uv pip install --system -r pyproject.toml
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Terminal 2 - Frontend:**
 ```bash
-cd /home/ruxu/langchain/menu-ai-app/frontend
+cd /Users/xurunhui/Desktop/App/menu-ai-app/frontend
 npm install
 npm run dev
 ```
@@ -81,7 +81,7 @@ npm run dev
 When you have Docker installed:
 
 ```bash
-cd /home/ruxu/langchain/menu-ai-app
+cd /Users/xurunhui/Desktop/App/menu-ai-app
 docker compose up
 ```
 
@@ -102,11 +102,11 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Restart terminal
 ```
 
-**"GEMINI_API_KEY not set"**
+**"DEEPSEEK_API_KEY not set"**
 ```bash
 # Edit .env file in menu-ai-app directory
 nano .env
-# Add: GEMINI_API_KEY=your_actual_key
+# Add: DEEPSEEK_API_KEY=your_actual_key
 ```
 
 **"Port 8000 already in use"**
@@ -117,9 +117,9 @@ kill -9 <PID>
 ```
 
 **Backend can't find .env**
-- The .env file should be in `/home/ruxu/langchain/menu-ai-app/.env` (app root)
+- The .env file should be in `/Users/xurunhui/Desktop/App/menu-ai-app/.env` (app root)
 - The backend automatically looks in the parent directory
-- You can also set the environment variable directly: `export GEMINI_API_KEY=your_key`
+- You can also set the environment variable directly: `export DEEPSEEK_API_KEY=your_key`
 
 ## Next Steps
 

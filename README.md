@@ -1,6 +1,15 @@
 # Menu AI - AI-Powered Menu Parser
 
-A web application that uses Gemini Vision API to parse restaurant menu images into structured data with multilingual support and Yelp integration for restaurant insights.
+A web application that uses DeepSeek multimodal API (deepseek-flash, non-thinking) to parse restaurant menu images into structured data with multilingual support and Yelp integration for restaurant insights.
+
+
+> **Live demo:** see [deploy/README.md](deploy/README.md) to publish a one-link demo on Hugging Face Spaces.
+
+> **Knowledge base (combo recommendations):** after installing backend dependencies, run
+> `cd backend && python -m app.knowledge.cli build` once (about a minute). It imports meal-composition notes,
+> Wikipedia articles on how food cultures structure meals, FlavorGraph ingredient pairings, Wikidata dishes, and a
+> public-domain cookbook. Add your own PDFs with
+> `python -m app.knowledge.cli ingest-pdf file.pdf --title "..." --license "..."`.
 
 ## Features
 
@@ -20,26 +29,53 @@ A web application that uses Gemini Vision API to parse restaurant menu images in
 - Photo gallery from Yelp
 - Integration with menu parsing for contextual insights
 
+### Phase 2: RAG Recommendations ✅
+- Build a multi-source knowledge base (Google Places, DuckDuckGo, Yelp)
+- Get dish recommendations with semantic search
+- Optional taste and texture prediction with DeepSeek
+- Dish context endpoint for menu descriptions and review excerpts
+- The app no longer builds this knowledge base: without a menu it held no documents, and every dish
+  page opened from a restaurant showed an error. Dish pages now predict taste and texture from the
+  menu's description and the Google review quotes that mention the dish
+  (`/api/v1/recommendation/taste-texture`); the knowledge-base endpoints are still in the API.
+
+### Phase 3: Dish Photos and the Dining Assistant ✅
+- Dish photos chosen by DeepSeek: the search shortlist goes to the vision model, which picks the
+  photo that actually shows the dish (or none, rather than a picture of something else)
+- AI dining assistant: a conversation that asks what you feel like, where you are and how far
+  you'll travel, then searches real restaurants and says what to order there
+- The assistant calls tools — Google Places search, restaurant highlights from reviews, the
+  menu reader, and the local food knowledge base — and falls back to a scripted three-question
+  flow with no API key
+- Menus from every source, labelled: the restaurant's own website (HTML, PDF or menu photos, two
+  links deep, skipping domains that no longer belong to the restaurant), dishes named in reviews,
+  and photos the diner adds — merged into one menu where each dish shows where it was found and
+  where prices disagree. Google place photos are not used.
+- A guided tour ("Take the tour" on the home page): three steps that run the menu reader, the
+  restaurant lookup and the assistant for real on sample input, with a bar explaining each page
+
 ## Quick Start
 
 ### Prerequisites
 
 **Option A - With Docker (Recommended):**
 - Docker and Docker Compose
-- Gemini API key ([Get one here](https://aistudio.google.com/app/apikey))
+- DeepSeek API key ([Get one here](https://platform.deepseek.com/api_keys))
 - Yelp Fusion API key ([Get one here](https://www.yelp.com/developers/v3/manage_app)) - Optional for Phase 1.5 features
+- Google Places API key ([Get one here](https://console.cloud.google.com/apis/credentials)) - Recommended for RAG sources
 
 **Option B - Without Docker:**
 - Python 3.11+ with `uv` package manager
 - Node.js 20+
-- Gemini API key ([Get one here](https://aistudio.google.com/app/apikey))
+- DeepSeek API key ([Get one here](https://platform.deepseek.com/api_keys))
 - Yelp Fusion API key ([Get one here](https://www.yelp.com/developers/v3/manage_app)) - Optional for Phase 1.5 features
+- Google Places API key ([Get one here](https://console.cloud.google.com/apis/credentials)) - Recommended for RAG sources
 
 ### Setup with Docker
 
 1. Navigate to the Menu AI app directory:
    ```bash
-   cd /home/ruxu/langchain/menu-ai-app
+   cd /Users/xurunhui/Desktop/App/menu-ai-app
    ```
 
 2. Create a `.env` file:
@@ -49,8 +85,9 @@ A web application that uses Gemini Vision API to parse restaurant menu images in
 
 3. Add your API keys to `.env`:
    ```
-   GEMINI_API_KEY=your_actual_gemini_api_key_here
+   DEEPSEEK_API_KEY=your_actual_deepseek_api_key_here
    YELP_API_KEY=your_actual_yelp_api_key_here
+   GOOGLE_PLACES_API_KEY=your_google_places_api_key_here
    ```
 
    Note: The app will work without a Yelp API key, but Phase 1.5 restaurant features will be disabled.
@@ -69,7 +106,7 @@ A web application that uses Gemini Vision API to parse restaurant menu images in
 
 1. Navigate to the Menu AI app directory:
    ```bash
-   cd /home/ruxu/langchain/menu-ai-app
+   cd /Users/xurunhui/Desktop/App/menu-ai-app
    ```
 
 2. Create a `.env` file in the app root:
@@ -79,8 +116,9 @@ A web application that uses Gemini Vision API to parse restaurant menu images in
 
 3. Add your API keys to `.env`:
    ```
-   GEMINI_API_KEY=your_actual_gemini_api_key_here
+   DEEPSEEK_API_KEY=your_actual_deepseek_api_key_here
    YELP_API_KEY=your_actual_yelp_api_key_here
+   GOOGLE_PLACES_API_KEY=your_google_places_api_key_here
    ```
 
    Note: The app will work without a Yelp API key, but Phase 1.5 restaurant features will be disabled.
@@ -139,6 +177,21 @@ Run the script in two separate terminals (once for backend, once for frontend).
 4. View the structured results
 
 You can use the sample menu at `sample-menu.png` for testing.
+
+### Running Backend Tests
+
+Unit tests:
+```bash
+pytest backend/tests -m "not integration"
+```
+
+Integration tests (requires API keys and opt-in flag):
+```bash
+export RUN_INTEGRATION_TESTS=1
+export DEEPSEEK_API_KEY="your_key"
+export GOOGLE_PLACES_API_KEY="your_key"
+pytest backend/tests/integration -v
+```
 
 ## Project Structure
 
@@ -209,7 +262,7 @@ npm install package-name
 ### Environment Variables
 
 The backend reads from `.env` in the `menu-ai-app` root directory. Make sure to set:
-- `GEMINI_API_KEY`: Your Gemini API key (required)
+- `DEEPSEEK_API_KEY`: Your DeepSeek API key (required)
 
 ## API Reference
 
@@ -250,7 +303,7 @@ According to the plan, Phase 2 will add:
 ## Troubleshooting
 
 **Backend won't start:**
-- Check that `GEMINI_API_KEY` is set in `.env` file in the `menu-ai-app` root directory
+- Check that `DEEPSEEK_API_KEY` is set in `.env` file in the `menu-ai-app` root directory
 - Verify the API key is valid at [Google AI Studio](https://aistudio.google.com/app/apikey)
 - Make sure you're in the `backend` directory when running uvicorn
 - Check if port 8000 is already in use: `lsof -i :8000` or `netstat -ano | grep 8000`

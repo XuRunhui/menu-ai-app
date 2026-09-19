@@ -12,14 +12,14 @@ echo ""
 if [ ! -f .env ]; then
     echo "❌ Error: .env file not found"
     echo "   Run: cp .env.example .env"
-    echo "   Then add your GEMINI_API_KEY"
+    echo "   Then add your DEEPSEEK_API_KEY"
     exit 1
 fi
 
-# Check if GEMINI_API_KEY is set
+# Check if DEEPSEEK_API_KEY is set
 source .env
-if [ -z "$GEMINI_API_KEY" ]; then
-    echo "❌ Error: GEMINI_API_KEY not set in .env"
+if [ -z "$DEEPSEEK_API_KEY" ]; then
+    echo "❌ Error: DEEPSEEK_API_KEY not set in .env"
     exit 1
 fi
 

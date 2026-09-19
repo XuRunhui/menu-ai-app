@@ -1,6 +1,6 @@
 # Menu AI Backend
 
-FastAPI backend for AI-powered menu parsing using Gemini Vision API.
+FastAPI backend for AI-powered menu parsing using DeepSeek multimodal API (deepseek-flash, non-thinking).
 
 ## Setup
 
@@ -9,9 +9,9 @@ FastAPI backend for AI-powered menu parsing using Gemini Vision API.
    cp .env.example .env
    ```
 
-2. Add your Gemini API key to `.env`:
+2. Add your DeepSeek API key to `.env`:
    ```
-   GEMINI_API_KEY=your_actual_api_key
+   DEEPSEEK_API_KEY=your_actual_api_key
    ```
 
 ## Running Locally
@@ -57,5 +57,5 @@ app/
 ├── models/
 │   └── menu.py          # Pydantic data models
 └── services/
-    └── vision_parser.py # Gemini Vision API integration
+    └── vision_parser.py # DeepSeek multimodal API (deepseek-flash, non-thinking) integration
 ```

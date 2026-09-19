@@ -12,9 +12,9 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-# Check if GEMINI_API_KEY is set
+# Check if DEEPSEEK_API_KEY is set
 if grep -q "your_api_key_here" .env; then
-    echo "❌ Error: GEMINI_API_KEY not configured in .env"
+    echo "❌ Error: DEEPSEEK_API_KEY not configured in .env"
     echo "   Please replace 'your_api_key_here' with your actual API key"
     exit 1
 fi

@@ -8,13 +8,35 @@ dependencies = [
     "uvicorn[standard]>=0.24.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
-    "google-genai>=0.3.0",
+    "openai>=1.40.0",
     "requests>=2.31.0",
     "python-multipart>=0.0.6",
+    # Database & auth
+    "sqlalchemy>=2.0",
+    "pwdlib[argon2]>=0.2.1",
+    "pyjwt>=2.8",
+    "google-auth>=2.30",
+    # Knowledge base: PDF text extraction / page rendering for OCR
+    "pypdfium2>=4.30",
+    "pillow>=10",
+    # Multi-source data collection. Pinned together: the image built with ddgs 9.16 + primp 2.0 failed
+    # every DuckDuckGo request ("malformed headers") and ddgs quietly answered from Bing instead, which
+    # is why the deployed site's dish photos were worse than local ones. No newer pair tested works.
+    "ddgs==9.10.0",
+    "primp==0.15.0",
+    # RAG & embeddings
+    "sentence-transformers>=2.2.0",
+    "numpy>=1.24.0",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
     "httpx>=0.25.0",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks integration tests"
 ]

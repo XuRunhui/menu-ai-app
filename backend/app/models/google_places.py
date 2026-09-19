@@ -10,13 +10,6 @@ class GooglePlaceGeometry(BaseModel):
     lng: float
 
 
-class GooglePlacePhoto(BaseModel):
-    """Photo reference for a Google Place."""
-    photo_reference: str
-    width: int
-    height: int
-
-
 class GooglePlace(BaseModel):
     """Basic Google Place information from search."""
     place_id: str
@@ -27,7 +20,6 @@ class GooglePlace(BaseModel):
     price_level: Optional[int] = None  # 0-4 scale
     types: list[str] = Field(default_factory=list)
     geometry: Optional[dict] = None
-    photos: list[dict] = Field(default_factory=list)
     business_status: Optional[str] = None
 
 
@@ -56,8 +48,6 @@ class GooglePlaceDetails(BaseModel):
     types: list[str] = Field(default_factory=list)
     geometry: Optional[dict] = None
     opening_hours: Optional[dict] = None
-    photos: list[dict] = Field(default_factory=list)
-    photo_urls: list[str] = Field(default_factory=list)
     reviews: list[GooglePlaceReview] = Field(default_factory=list)
 
 

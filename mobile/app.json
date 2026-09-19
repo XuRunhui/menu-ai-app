@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Menuist",
+    "slug": "menuist",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "platforms": ["ios", "android"],
+    "icon": "./assets/icon.png",
+    "splash": {
+      "backgroundColor": "#0F0F0F"
+    },
+    "ios": {
+      "bundleIdentifier": "com.menuist.app",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.menuist.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F0F0F"
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Menuist needs access to your photos to upload menu images."
+        }
+      ]
+    ]
+  }
+}
