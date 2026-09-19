@@ -208,3 +208,39 @@ def test_wikimedia_results_are_parsed_with_attribution(monkeypatch):
     assert len(results) == 1
     assert results[0].url.endswith("poutine_800.jpg") and results[0].source == "wikimedia"
     assert results[0].attribution == "Jane Doe · CC BY-SA 4.0 · Wikimedia Commons"
+
+
+# ─── Downloads come from search results, so they're treated as hostile ────────
+
+
+def test_a_search_result_pointing_inside_the_server_is_not_fetched():
+    from app.services.menu_sources.website import UnsafeAddress
+
+    for url in ("http://127.0.0.1:8000/api/health", "http://169.254.169.254/computeMetadata/v1/",
+                "http://10.0.0.5/photo.jpg", "file:///etc/passwd"):
+        try:
+            DishImageService._download_bytes(url)
+        except UnsafeAddress:
+            continue
+        raise AssertionError(f"fetched {url}")
+
+
+def test_an_image_too_big_to_decode_is_skipped(tmp_path):
+    import io
+
+    from PIL import Image
+
+    from app.services import dish_image_service
+
+    def png(width, height):
+        buffer = io.BytesIO()
+        Image.new("1", (width, height)).save(buffer, format="PNG", optimize=True)
+        return buffer.getvalue()
+
+    huge = png(8000, 8000)       # 64 megapixels, yet only a few kilobytes on disk
+    assert len(huge) < 200_000 and not dish_image_service._decodable_size(huge)
+    assert dish_image_service._decodable_size(png(1200, 900))
+
+    service = _service(tmp_path, lambda q, n: _candidates("https://img.test/bomb.png"),
+                       download=lambda url: huge)
+    assert asyncio.run(service.fetch_and_cache("Bomb House", "Noodles")) is None

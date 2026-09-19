@@ -2,11 +2,11 @@
 
 import json
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.concurrency import run_in_threadpool
 
 from app.core.config import settings
-from app.core.rate_limit import enforce_demo_limits
+from app.core.rate_limit import enforce_demo_limits, llm_budget_exhausted
 from app.knowledge.combos import DishInput, recommend_combos_with_context
 from app.knowledge.db import knowledge_session
 from app.knowledge.retrieval import search_passages
@@ -32,7 +32,7 @@ def knowledge_stats() -> dict:
         return stats(db)
 
 
-@router.get("/search", response_model=list[PassageHit])
+@router.get("/search", response_model=list[PassageHit], dependencies=[Depends(enforce_demo_limits)])
 def search(q: str = Query(..., min_length=2, max_length=500), top_k: int = Query(5, ge=1, le=20)):
     with knowledge_session() as db:
         return search_passages(db, q, top_k=top_k)
@@ -61,8 +61,9 @@ def _combos(request: ComboRequest) -> ComboResponse:
         return cached
 
     response = compute_combos(request)
-    # Only cache model-written combos; keyword-fallback results should be retried once a key is set.
-    if response.combos and settings.deepseek_api_key:
+    # Only cache model-written combos: keyword-fallback results (no key yet, or the demo's AI budget
+    # spent for now) should be worked out properly next time.
+    if response.combos and settings.deepseek_api_key and not llm_budget_exhausted():
         cache_service.set_llm_response(combo_cache_key(request), settings.deepseek_model, "combo_response",
                                        response.model_dump_json())
     return response

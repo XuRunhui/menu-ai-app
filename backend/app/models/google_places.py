@@ -53,8 +53,8 @@ class GooglePlaceDetails(BaseModel):
 
 class PlaceSearchRequest(BaseModel):
     """Request model for place search."""
-    query: str
-    location: Optional[str] = None
+    query: str = Field(..., min_length=1, max_length=200)
+    location: Optional[str] = Field(None, max_length=200)
 
 
 class PlaceSearchResponse(BaseModel):

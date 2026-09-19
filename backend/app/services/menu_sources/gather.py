@@ -38,6 +38,13 @@ def read_source(kind: str, place_id: str, target_language: Optional[str] = "Engl
         return SourceResult(report=SourceReport(
             kind=kind, status="unavailable", detail="Menu lookup isn't configured on this server."))
 
+    from app.core.rate_limit import DemoCapReached, claim_menu_read
+
+    try:
+        claim_menu_read()  # the site-wide ceiling on menus read per hour
+    except DemoCapReached as exc:
+        return SourceResult(report=SourceReport(kind=kind, status="unavailable", detail=exc.detail))
+
     from app.services.google_places_service import GooglePlacesService
 
     service = GooglePlacesService(settings.google_places_api_key)
@@ -52,6 +59,8 @@ def read_source(kind: str, place_id: str, target_language: Optional[str] = "Engl
 
         return read_website_menu(place.get("name", ""), place.get("website"),
                                  settings.deepseek_api_key, target_language)
+    except DemoCapReached as exc:  # the demo's AI budget is spent for now
+        return SourceResult(report=SourceReport(kind=kind, status="unavailable", detail=exc.detail))
     except Exception as exc:  # one broken source must not take the others down
         logger.exception("menu_sources: %s failed for %s", kind, place_id)
         return _error(kind, f"Something went wrong reading this source ({type(exc).__name__}).")

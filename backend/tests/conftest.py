@@ -31,3 +31,5 @@ def no_live_api_calls(request, monkeypatch):
     if request.node.get_closest_marker("integration"):
         return
     monkeypatch.setattr(settings, "deepseek_api_key", "")
+    # Google bills every Places request, and a real key must never reach test output either.
+    monkeypatch.setattr(settings, "google_places_api_key", "")

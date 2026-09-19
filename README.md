@@ -3,7 +3,11 @@
 A web application that uses DeepSeek multimodal API (deepseek-flash, non-thinking) to parse restaurant menu images into structured data with multilingual support and Yelp integration for restaurant insights.
 
 
-> **Live demo:** see [deploy/README.md](deploy/README.md) to publish a one-link demo on Hugging Face Spaces.
+> **Live demo:** **<https://menuist-wzt2qenmpa-uc.a.run.app/>** — press **Take the tour** on the home
+> page for a three-step walkthrough (menu photo, restaurant lookup, AI assistant). It's a demo
+> deployment, so usage is rate-limited. To deploy your own copy, see
+> [deploy/cloudrun/README.md](deploy/cloudrun/README.md) (or [deploy/README.md](deploy/README.md) for
+> Hugging Face Spaces).
 
 > **Knowledge base (combo recommendations):** after installing backend dependencies, run
 > `cd backend && python -m app.knowledge.cli build` once (about a minute). It imports meal-composition notes,

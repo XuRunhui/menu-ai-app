@@ -6,7 +6,7 @@ from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 from typing import Optional
 
-from app.core.rate_limit import enforce_dish_image_limit
+from app.core.rate_limit import DemoCapReached, enforce_dish_image_limit
 from app.services import cache_service
 from app.services.dish_image_service import get_dish_image_service
 
@@ -103,6 +103,8 @@ async def get_dish_image(
             attribution=(meta.attribution or "") if meta else "",
             source=(meta.source or "") if meta else "",
         )
+    except DemoCapReached:
+        raise  # 429: the page asks again later
     except Exception:
         logger.exception("dish_image: unexpected failure for '%s'", dish_name)
         return DishImageResponse()

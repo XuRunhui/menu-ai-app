@@ -112,6 +112,32 @@ fails.
 | `--timeout` | 300s | Menu parsing and combo generation can take tens of seconds |
 | Keep-warm ping | every 10 min | Cloud Run keeps idle instances for up to 15 minutes |
 
+## Protecting the demo
+
+The app limits itself (values in the `Dockerfile`, logic in `backend/app/core/rate_limit.py`):
+
+- **Per visitor**, by the address Cloud Run saw (the right-most `X-Forwarded-For` entry, so sending
+  a fake header doesn't make a new visitor): 60 AI/API requests, 300 dish-photo searches and 600
+  menu merges an hour. Answers from the cache don't count.
+- **Site-wide**, for traffic spread over many addresses: 100 menus read an hour; 500 AI/API requests
+  and 3,000 dish-photo searches a day; DeepSeek 2,000 calls an hour and 10,000 a day (checked in the
+  one client every call goes through); Google Places 600 requests a day. Past a limit the page gets a
+  "try again later" (429), and nothing second-rate is cached in the meantime.
+
+Outside the app, set these once:
+
+1. **Restrict the Google key to the Places API** (the only Google API the app calls):
+   `gcloud services api-keys list` to find its ID, then
+   `gcloud services api-keys update KEY_ID --api-target=service=places-backend.googleapis.com`.
+2. **Cap Places in Google Cloud too**: APIs & Services → Places API → Quotas → set *requests per
+   day* to about 600. Google enforces it even if the app's own limits had a bug.
+3. **Keep the DeepSeek balance small.** It's prepaid, so the balance is the most DeepSeek can ever
+   cost; top it up by hand.
+4. **Budget alert**: see step 2 above.
+
+If a key is ever exposed, make a new one (restricted as in 1), put it in `.env`, run `./deploy.sh`
+(which copies it to Secret Manager and deploys), then delete the old key.
+
 ## Troubleshooting
 
 - **Build fails with a permission error**: in IAM, give

@@ -143,7 +143,7 @@ class LLMClient:
 
         text = ""
         if json_mode:
-            response = self._client.chat.completions.create(
+            response = self._create(
                 **request, response_format={"type": "json_object"}
             )
             text = self._extract_text(response)
@@ -152,7 +152,7 @@ class LLMClient:
                 logger.warning("DeepSeek JSON mode returned empty content; retrying without it")
 
         if not text:
-            response = self._client.chat.completions.create(**request)
+            response = self._create(**request)
             text = self._extract_text(response)
 
         if cache_key and text and self._cacheable(response, text, json_mode):
@@ -212,7 +212,7 @@ class LLMClient:
             if tool_choice:
                 request["tool_choice"] = tool_choice
 
-        response = self._client.chat.completions.create(**request)
+        response = self._create(**request)
         self._track_usage(response)
         choice = response.choices[0] if response.choices else None
         if choice is None:
@@ -220,6 +220,16 @@ class LLMClient:
         if choice.finish_reason == "length":
             logger.warning("DeepSeek chat reply truncated at max_tokens")
         return choice.message
+
+    def _create(self, **request):
+        """The one place a request leaves for DeepSeek, so the site-wide budget sees every call.
+
+        Raises ``DemoCapReached`` (a 429) once the demo's hourly or daily allowance is spent.
+        """
+        from app.core.rate_limit import claim_llm_call
+
+        claim_llm_call()
+        return self._client.chat.completions.create(**request)
 
     @staticmethod
     def _track_usage(response) -> None:

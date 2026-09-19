@@ -200,11 +200,12 @@ export function predictTasteTexture(
   const request = fetch(`${API_BASE_URL}/api/v1/recommendation/taste-texture`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    // Within the server's limits, which keep what goes into the prompt small.
     body: JSON.stringify({
-      dish_name: dishName,
-      description,
+      dish_name: dishName.slice(0, 300),
+      description: description.slice(0, 2000),
       include_reviews: reviewExcerpts.length > 0,
-      review_excerpts: reviewExcerpts,
+      review_excerpts: reviewExcerpts.slice(0, 10).map((quote) => quote.slice(0, 1500)),
     }),
   }).then(async (response) => {
     if (!response.ok) throw new Error(`HTTP error ${response.status}`);

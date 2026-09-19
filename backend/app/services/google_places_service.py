@@ -11,6 +11,8 @@ Commons instead (see image_sources.py).
 """
 
 import requests
+
+from app.core.rate_limit import claim_places_call
 import logging
 from typing import Optional
 
@@ -88,6 +90,7 @@ class GooglePlacesService:
         }
 
         try:
+            claim_places_call()  # the site-wide daily budget
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
 
@@ -126,6 +129,7 @@ class GooglePlacesService:
         logger.info(f"Text search for: {query}")
 
         try:
+            claim_places_call()  # the site-wide daily budget
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
 
@@ -170,6 +174,7 @@ class GooglePlacesService:
         logger.info(f"Fetching details for place: {place_id}")
 
         try:
+            claim_places_call()  # the site-wide daily budget
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
 
@@ -194,6 +199,7 @@ class GooglePlacesService:
         Narrower than get_place_details on purpose — no reviews or opening hours, so it bills at
         the cheaper Place Details SKUs.
         """
+        claim_places_call()  # the site-wide daily budget
         response = requests.get(
             f"{GOOGLE_PLACES_API_BASE}/place/details/json",
             params={"place_id": place_id, "fields": "place_id,name,website", "key": self.api_key},

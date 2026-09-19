@@ -130,3 +130,50 @@ def test_cached_combos_do_not_count_toward_the_limit(monkeypatch):
     fresh = [client.post("/api/v1/knowledge/combos", json={"dishes": [{"name": f"New {i}"}, {"name": "X"}]}).status_code
              for i in range(2)]
     assert fresh == [200, 429]
+
+
+# ─── Who counts as a visitor, and what one request may ask for ───────────────
+
+
+def test_a_visitor_cannot_dodge_the_limit_by_sending_their_own_forwarded_header(tmp_path, monkeypatch):
+    # Cloud Run appends the real address on the right; anything to its left is the client's own.
+    reset_demo_limits()
+    monkeypatch.setattr(settings, "demo_dish_image_rate_limit_per_hour", 2)
+    _service(tmp_path, monkeypatch)
+
+    def search(dish, fake):
+        return client.get("/api/v1/dish-image", params={"dish_name": dish, "restaurant_name": "Spoof"},
+                          headers={"X-Forwarded-For": f"{fake}, 198.51.100.7"}).status_code
+
+    assert [search(f"Dish {i}", f"203.0.113.{i}") for i in range(3)] == [200, 200, 429]
+
+
+def test_dish_photo_searches_have_a_daily_ceiling_across_visitors(tmp_path, monkeypatch):
+    reset_demo_limits()
+    monkeypatch.setattr(settings, "demo_dish_image_daily_cap", 2)
+    _service(tmp_path, monkeypatch)
+    statuses = [client.get("/api/v1/dish-image", params={"dish_name": f"Daily {i}", "restaurant_name": "Cap"},
+                           headers={"X-Forwarded-For": f"198.51.100.{i}"}).status_code for i in range(3)]
+    assert statuses == [200, 200, 429]
+
+
+def test_combining_refuses_more_dishes_than_any_menu_has():
+    from app.models.menu_sources import MAX_COMBINED_DISHES
+
+    reset_demo_limits()
+    items = [{"name": f"Dish {i}"} for i in range(MAX_COMBINED_DISHES + 1)]
+    oversized = {"sources": [{"kind": "upload", "menu": {"menu": [{"category": "All", "items": items}]}}]}
+    assert client.post("/api/v1/menus/combine", json=oversized).status_code == 422
+
+    long_name = {"sources": [{"kind": "upload", "menu": {"menu": [{"category": "All", "items": [{"name": "x" * 5000}]}]}}]}
+    assert client.post("/api/v1/menus/combine", json=long_name).status_code == 422
+
+    normal = {"sources": [{"kind": "upload", "menu": {"menu": [{"category": "All", "items": items[:60]}]}}]}
+    assert client.post("/api/v1/menus/combine", json=normal).status_code == 200
+
+
+def test_the_taste_prediction_takes_only_a_menu_sized_description():
+    reset_demo_limits()
+    response = client.post("/api/v1/recommendation/taste-texture",
+                           json={"dish_name": "Soup", "description": "spicy " * 1000})
+    assert response.status_code == 422

@@ -33,6 +33,7 @@ Cache strategy:
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
 from pathlib import Path
 from typing import Callable, Optional
@@ -40,6 +41,7 @@ from typing import Callable, Optional
 import requests
 
 from app.core.config import settings
+from app.core.rate_limit import DemoCapReached
 from app.services import cache_service
 from app.services.image_judge import Shortlisted, pick_best, suggest_search_terms, thumbnail
 from app.services.image_sources import (
@@ -57,6 +59,9 @@ _EXTENSIONS = ((b"\x89PNG\r\n\x1a\n", ".png"), (b"GIF87a", ".gif"), (b"GIF89a", 
 
 MIN_IMAGE_BYTES = 1024      # smaller than this is an icon or an error page
 MIN_IMAGE_WIDTH = 200       # thumbnails are rarely the dish; skip before paying for a download
+MAX_IMAGE_BYTES = 8_000_000     # a dish photo is well under this; a bigger file isn't read whole
+MAX_IMAGE_PIXELS = 40_000_000   # decoding more (a "decompression bomb") would eat the container's memory
+DOWNLOAD_USER_AGENT = "Mozilla/5.0 (compatible; MenuAI/1.0)"
 
 
 def _web_queries(restaurant: str, dish: str, translated: str) -> list[str]:
@@ -77,6 +82,23 @@ DEFAULT_PROVIDERS: list[tuple] = [
 
 def _looks_like_image(content: bytes) -> bool:
     return content.startswith(_IMAGE_SIGNATURES) or (content[:4] == b"RIFF" and content[8:12] == b"WEBP")
+
+
+def _decodable_size(content: bytes) -> bool:
+    """Whether the image's own header claims a size that is safe to decode.
+
+    A small file can declare an enormous canvas; decoding it for the judge's thumbnail would take
+    gigabytes. Pillow reads only the header here. Unreadable headers pass, and later steps decide.
+    """
+    from PIL import Image
+
+    try:
+        with Image.open(io.BytesIO(content)) as image:
+            return image.width * image.height <= MAX_IMAGE_PIXELS
+    except Image.DecompressionBombError:  # Pillow's own refusal, for the very largest
+        return False
+    except Exception:
+        return True
 
 
 def _extension(content: bytes) -> str:
@@ -201,6 +223,8 @@ class DishImageService:
                 try:
                     terms = await asyncio.to_thread(suggest_search_terms, llm, dish_name,
                                                     restaurant_name, translated_name, description)
+                except DemoCapReached:
+                    raise
                 except Exception as exc:
                     logger.warning("dish_image: couldn't get search terms for '%s' (%s)", dish_name, exc)
                     terms = []
@@ -288,8 +312,8 @@ class DishImageService:
             if isinstance(content, BaseException):
                 logger.debug("dish_image: download failed for %s: %s", candidate.url, content)
                 continue
-            # Skip tiny files and HTML error pages served with a 200 status.
-            if len(content) < MIN_IMAGE_BYTES or not _looks_like_image(content):
+            # Skip tiny files, HTML error pages served with a 200 status, and images too big to decode.
+            if len(content) < MIN_IMAGE_BYTES or not _looks_like_image(content) or not _decodable_size(content):
                 continue
             kept.append(Shortlisted(candidate=candidate, query=query, content=content, thumbnail=b""))
         return kept
@@ -309,6 +333,10 @@ class DishImageService:
             logger.info("dish_image: judging %d candidates for '%s'", len(shortlist), dish_name)
             return await asyncio.to_thread(pick_best, llm, restaurant_name, dish_name, shortlist,
                                            None, description)
+        except DemoCapReached:
+            # The demo's AI budget is spent: nothing is chosen or cached, and the visitor is told
+            # to try later, rather than an unjudged photo being kept for everyone for 28 days.
+            raise
         except Exception as exc:
             # A quota error or a timeout must not cost the card its picture.
             logger.warning("dish_image: judging failed for '%s' (%s); using the first result",
@@ -350,15 +378,21 @@ class DishImageService:
 
     @staticmethod
     def _download_bytes(url: str) -> bytes:
-        """Synchronous HTTP GET for running in a thread pool."""
-        resp = requests.get(
-            url,
-            timeout=DishImageService.DOWNLOAD_TIMEOUT,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; MenuAI/1.0)"},
-            allow_redirects=True,
-        )
-        resp.raise_for_status()
-        return resp.content
+        """GET one candidate photo, for running in a thread pool.
+
+        The URLs come from search results, which anyone can get a page into. So this goes through
+        the website reader's fetch: public addresses only at every redirect (never this server's own
+        network or the cloud metadata service), and a file too big for a photo is refused rather
+        than read into memory.
+        """
+        from app.services.menu_sources.website import fetch
+
+        fetched = fetch(url, max_bytes=MAX_IMAGE_BYTES, user_agent=DOWNLOAD_USER_AGENT)
+        if fetched.status >= 400:
+            raise requests.HTTPError(f"HTTP {fetched.status} for {url}")
+        if len(fetched.content) >= MAX_IMAGE_BYTES:
+            raise ValueError(f"image over {MAX_IMAGE_BYTES} bytes: {url}")
+        return fetched.content
 
 
 # ── Module-level singleton ────────────────────────────────────────────────────

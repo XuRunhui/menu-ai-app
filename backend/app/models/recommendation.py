@@ -1,6 +1,6 @@
 """Pydantic models for the recommendation system API."""
 
-from typing import Dict, List, Optional
+from typing import Annotated, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -17,10 +17,11 @@ class BuildKnowledgeBaseRequest(BaseModel):
         ... )
     """
 
-    restaurant_name: str = Field(..., description="Restaurant name", example="BCD Tofu House")
-    location: str = Field(..., description="Restaurant location", example="Koreatown Los Angeles")
+    restaurant_name: str = Field(..., max_length=255, description="Restaurant name", example="BCD Tofu House")
+    location: str = Field(..., max_length=500, description="Restaurant location", example="Koreatown Los Angeles")
     place_id: Optional[str] = Field(
         None,
+        max_length=300,
         description="Google Place ID for faster lookup",
         example="ChIJobNa..."
     )
@@ -72,9 +73,9 @@ class BuildKnowledgeBaseResponse(BaseModel):
 class RecommendationRequest(BaseModel):
     """Request payload for dish recommendations."""
 
-    restaurant_name: str = Field(..., description="Restaurant name")
-    location: str = Field(..., description="Restaurant location")
-    user_preferences: str = Field(..., description="User query", example="I want something spicy")
+    restaurant_name: str = Field(..., max_length=255, description="Restaurant name")
+    location: str = Field(..., max_length=500, description="Restaurant location")
+    user_preferences: str = Field(..., max_length=1000, description="User query", example="I want something spicy")
     top_k: int = Field(5, ge=1, le=20, description="Number of recommendations to return")
     use_llm_enhancement: bool = Field(True, description="Enhance explanations with LLM")
     filter_allergens: Optional[List[str]] = Field(
@@ -149,11 +150,13 @@ class RecommendationResponse(BaseModel):
 class TasteTextureRequest(BaseModel):
     """Request payload for taste/texture prediction."""
 
-    dish_name: str = Field(..., description="Dish name")
-    description: str = Field(..., description="Menu description for the dish")
+    # Bounded: all of it goes into a DeepSeek prompt, and the dish page is public.
+    dish_name: str = Field(..., max_length=300, description="Dish name")
+    description: str = Field(..., max_length=2000, description="Menu description for the dish")
     include_reviews: bool = Field(True, description="Whether to include review refinement")
-    review_excerpts: Optional[List[str]] = Field(
+    review_excerpts: Optional[List[Annotated[str, Field(max_length=1500)]]] = Field(
         None,
+        max_length=10,
         description="Optional review excerpts to use for round 2"
     )
 

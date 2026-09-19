@@ -3,21 +3,22 @@
 import os
 from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    deepseek_api_key: str = os.getenv("DEEPSEEK_API_KEY", "")
+    # Secrets are left out of repr(): a printed Settings (a log line, a test failure) once showed a key.
+    deepseek_api_key: str = Field(os.getenv("DEEPSEEK_API_KEY", ""), repr=False)
     # deepseek-flash is DeepSeek's multimodal model; LLMClient runs it in non-thinking mode.
     deepseek_model: str = "deepseek-flash"
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_max_tokens: int = 8192
     deepseek_timeout_seconds: float = 120.0
-    yelp_api_key: str = os.getenv("YELP_API_KEY", "")
-    google_places_api_key: str = os.getenv("GOOGLE_PLACES_API_KEY", "")
+    yelp_api_key: str = Field(os.getenv("YELP_API_KEY", ""), repr=False)
+    google_places_api_key: str = Field(os.getenv("GOOGLE_PLACES_API_KEY", ""), repr=False)
     # Dish photos: let DeepSeek pick the right photo out of the search results (see image_judge.py).
     # Off falls back to "first result that downloads", which is what produced the wrong photos.
     dish_image_judge_enabled: bool = True
@@ -36,7 +37,7 @@ class Settings(BaseSettings):
     # Accounts (register/login/Google/history on the server). Off: everyone uses the app as a guest.
     auth_enabled: bool = False
     # Auth: set AUTH_SECRET_KEY in production (e.g. `openssl rand -hex 32`) so sessions survive restarts
-    auth_secret_key: str = ""
+    auth_secret_key: str = Field("", repr=False)
     auth_session_days: int = 7
     # Google sign-in: OAuth 2.0 Web client ID from Google Cloud Console (leave empty to hide the button)
     google_oauth_client_id: str = ""
@@ -46,6 +47,24 @@ class Settings(BaseSettings):
     # Per-IP cap on dish-image lookups. A menu page fires one per dish, and each miss now costs a
     # DeepSeek call to choose the photo, so this is set well above one page and below a scripted loop.
     demo_dish_image_rate_limit_per_hour: int = 0
+    # All dish-photo searches per UTC day, from everyone: a ceiling on their spend however many
+    # addresses the traffic comes from.
+    demo_dish_image_daily_cap: int = 0
+    # Per-IP cap on menu combining. It's free of API calls but its CPU grows with the square of the
+    # dish count; a page calls it a few times per restaurant.
+    demo_combine_rate_limit_per_hour: int = 0
+    # Site-wide ceilings, whoever the traffic comes from: per-IP limits don't stop someone rotating
+    # addresses. Menus read per hour (new photo parses and restaurant menu lookups alike), and
+    # DeepSeek calls per hour and per UTC day (cached answers don't count).
+    demo_menus_per_hour: int = 0
+    demo_llm_calls_per_hour: int = 0
+    demo_llm_calls_per_day: int = 0
+    # Google Places requests per UTC day, site-wide. Each costs $0.017-0.032, 30-60 times a typical
+    # DeepSeek call, and one assistant message can make three.
+    demo_places_calls_per_day: int = 0
+    # Proxies that append to X-Forwarded-For in front of the app: Cloud Run's front end is one
+    # (the Next.js proxy passes the header on untouched). Add one per extra load balancer.
+    trusted_proxy_hops: int = 1
 
     # Keys pasted into .env or a secret manager often carry a trailing newline or spaces,
     # which the APIs then reject with a confusing error.

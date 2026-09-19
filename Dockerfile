@@ -53,10 +53,22 @@ USER user
 ENV HF_HUB_OFFLINE=1 \
     TRANSFORMERS_OFFLINE=1
 
+# Demo limits (app/core/rate_limit.py). Per visitor: 60 AI/API requests, 300 dish-photo searches and
+# 600 menu merges an hour. Site-wide, however many addresses the traffic uses: 100 menus read an hour,
+# 500 AI/API requests and 3,000 dish-photo searches a day, DeepSeek calls 2,000 an hour and 10,000 a
+# day, Google Places requests 600 a day. Normal use costs cents a day; someone scripting the most
+# expensive calls from many addresses is held to roughly $60 a day of DeepSeek (long assistant
+# conversations at peak prices) and $20 of Places. Lower DEMO_DAILY_REQUEST_CAP to tighten both.
 ENV PORT=7860 \
     DEMO_RATE_LIMIT_PER_HOUR=60 \
     DEMO_DAILY_REQUEST_CAP=500 \
-    DEMO_DISH_IMAGE_RATE_LIMIT_PER_HOUR=300
+    DEMO_DISH_IMAGE_RATE_LIMIT_PER_HOUR=300 \
+    DEMO_DISH_IMAGE_DAILY_CAP=3000 \
+    DEMO_COMBINE_RATE_LIMIT_PER_HOUR=600 \
+    DEMO_MENUS_PER_HOUR=100 \
+    DEMO_LLM_CALLS_PER_HOUR=2000 \
+    DEMO_LLM_CALLS_PER_DAY=10000 \
+    DEMO_PLACES_CALLS_PER_DAY=600
 EXPOSE 7860
 
 CMD ["./start.sh"]

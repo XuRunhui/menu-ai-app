@@ -141,6 +141,8 @@ async def get_place(
             "cached_at": None
         }
 
+    except HTTPException:
+        raise  # including the demo's daily Places budget (429)
     except Exception as e:
         msg = f"Failed to fetch place data: {str(e)}"
         logger.error(msg)
