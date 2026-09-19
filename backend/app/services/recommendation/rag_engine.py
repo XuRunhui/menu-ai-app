@@ -7,14 +7,14 @@ intelligent dish recommendations based on:
 - Popular dish mentions
 - User preferences
 
-Architecture inspired by LangChain's RAG patterns but using Gemini LLM.
+Architecture inspired by LangChain's RAG patterns but using the DeepSeek LLM.
 
 Example Usage:
     >>> from app.services.recommendation.rag_engine import RAGRecommendationEngine
     >>> from app.core.config import settings
     >>>
     >>> # Initialize engine
-    >>> engine = RAGRecommendationEngine(gemini_api_key=settings.gemini_api_key)
+    >>> engine = RAGRecommendationEngine(llm_api_key=settings.deepseek_api_key)
     >>>
     >>> # Build knowledge base
     >>> stats = await engine.build_knowledge_base(
@@ -49,12 +49,13 @@ Example Usage:
     }
 """
 
+import asyncio
 import logging
 from typing import List, Dict, Optional
-from google import genai
-from google.genai import types
 import json
+import re
 
+from app.services.llm_client import LLMClient
 from .vector_store import VectorStore
 from ..data_collection.multi_source_aggregator import MultiSourceAggregator
 
@@ -67,16 +68,16 @@ class RAGRecommendationEngine:
     This class implements a RAG pattern:
     1. **Retrieval**: Vector similarity search to find relevant reviews
     2. **Augmentation**: Combine retrieved context with user query
-    3. **Generation**: Use Gemini to generate personalized recommendations
+    3. **Generation**: Use the DeepSeek LLM to generate personalized recommendations
 
     Attributes:
         vector_store: VectorStore instance for semantic search
-        gemini_client: Gemini API client for LLM generation
+        llm_client: DeepSeek API client for LLM generation
         aggregator: Multi-source data aggregator
         knowledge_base_built: Whether knowledge base has been built
 
     Example:
-        >>> engine = RAGRecommendationEngine(gemini_api_key="AIza...")
+        >>> engine = RAGRecommendationEngine(llm_api_key="sk-...")
         >>> await engine.build_knowledge_base(...)
         >>> recommendations = engine.recommend_dishes("spicy noodles")
         >>> len(recommendations)
@@ -85,29 +86,29 @@ class RAGRecommendationEngine:
 
     def __init__(
         self,
-        gemini_api_key: str,
+        llm_api_key: str,
         google_places_api_key: Optional[str] = None,
         yelp_api_key: Optional[str] = None,
-        model_name: str = "gemini-2.0-flash-exp",
+        model_name: Optional[str] = None,
         cache_enabled: bool = True,
         cache_ttl_seconds: int = 604800
     ):
         """Initialize RAG engine with API keys.
 
         Args:
-            gemini_api_key: Google Gemini API key (required)
+            llm_api_key: DeepSeek API key (required)
             google_places_api_key: Google Places API key (optional)
             yelp_api_key: Yelp API key (optional)
-            model_name: Gemini model name for LLM enhancement
+            model_name: DeepSeek model name for LLM enhancement (defaults to settings)
             cache_enabled: Enable local caching for multi-source data collection
             cache_ttl_seconds: Cache TTL in seconds
 
         Example:
             >>> engine = RAGRecommendationEngine(
-            ...     gemini_api_key="AIza...",
+            ...     llm_api_key="sk-...",
             ...     google_places_api_key="AIza...",
             ...     yelp_api_key="abc...",
-            ...     model_name="gemini-2.5-flash",
+            ...     model_name="deepseek-flash",
             ...     cache_enabled=True,
             ...     cache_ttl_seconds=604800
             ... )
@@ -115,9 +116,8 @@ class RAGRecommendationEngine:
             False
         """
         self.vector_store = VectorStore()
-        self.gemini_client = genai.Client(api_key=gemini_api_key)
-        self.gemini_api_key = gemini_api_key
-        self.model_name = model_name
+        self.llm_client = LLMClient(api_key=llm_api_key, model_name=model_name)
+        self.model_name = self.llm_client.model_name
         self.aggregator = MultiSourceAggregator(
             google_api_key=google_places_api_key,
             yelp_api_key=yelp_api_key,
@@ -287,7 +287,8 @@ class RAGRecommendationEngine:
 
         # Step 4: Add to vector store
         logger.info("Step 4/4: Creating vector embeddings...")
-        self.vector_store.add_documents(documents)
+        # Encoding is CPU-bound; in a thread, other requests keep being served meanwhile.
+        await asyncio.to_thread(self.vector_store.add_documents, documents)
         self.knowledge_base_built = True
 
         stats = {
@@ -320,7 +321,7 @@ class RAGRecommendationEngine:
         Args:
             user_preferences: Natural language query (e.g., "spicy noodles", "vegetarian options")
             top_k: Number of recommendations to return (default 5)
-            use_llm: Whether to use Gemini for enhanced explanations (default True)
+            use_llm: Whether to use the LLM for enhanced explanations (default True)
 
         Returns:
             List of recommendation dictionaries sorted by confidence
@@ -359,7 +360,7 @@ class RAGRecommendationEngine:
 
         Debug Example:
             # Uncomment to test
-            # engine = RAGRecommendationEngine(gemini_api_key="key")
+            # engine = RAGRecommendationEngine(llm_api_key="key")
             # await engine.build_knowledge_base(...)
             # recs = engine.recommend_dishes("spicy", top_k=5)
             # import json
@@ -517,7 +518,7 @@ class RAGRecommendationEngine:
     ) -> List[Dict]:
         """Enhance recommendations with LLM-generated explanations.
 
-        Uses Gemini to generate better explanations for why each dish
+        Uses the LLM to generate better explanations for why each dish
         matches the user's preferences.
 
         Args:
@@ -544,7 +545,7 @@ class RAGRecommendationEngine:
                 if rec['reasons']:
                     context += f"\n   - {rec['reasons'][0]}"
 
-            # Ask Gemini to enhance explanations
+            # Ask the LLM to enhance explanations
             prompt = f"""Based on this context, provide 2-3 concise reasons why each dish matches the user's preferences.
 
 {context}
@@ -558,15 +559,9 @@ Return ONLY a JSON array with enhanced reasons for each dish:
   ...
 ]"""
 
-            response = self.gemini_client.models.generate_content(
-                model=self.model_name,
-                contents=[types.Part.from_text(text=prompt)]
-            )
+            result_text = self.llm_client.generate(prompt)
 
-            # Parse response
-            result_text = response.text.strip()
             # Remove markdown if present
-            import re
             result_text = re.sub(r'^```json\s*', '', result_text)
             result_text = re.sub(r'\s*```$', '', result_text)
 
@@ -670,7 +665,7 @@ if __name__ == "__main__":
 
     async def test_rag():
         engine = RAGRecommendationEngine(
-            gemini_api_key=os.getenv("GEMINI_API_KEY"),
+            llm_api_key=os.getenv("DEEPSEEK_API_KEY"),
             google_places_api_key=os.getenv("GOOGLE_PLACES_API_KEY")
         )
 
@@ -693,7 +688,7 @@ if __name__ == "__main__":
 
 # Example 2: Test dish mention extraction
 if __name__ == "__main__":
-    engine = RAGRecommendationEngine(gemini_api_key="dummy")
+    engine = RAGRecommendationEngine(llm_api_key="dummy")
 
     dishes = ["Soon Tofu Jjigae", "Kimchi Pancake", "Bulgogi"]
     review = "The soon tofu was incredible! Best I've ever had."

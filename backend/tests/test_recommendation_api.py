@@ -19,7 +19,7 @@ from app.core.config import settings  # noqa: E402
 
 
 class _FakeEngine:
-    def __init__(self, gemini_api_key=None, google_places_api_key=None, yelp_api_key=None):
+    def __init__(self, llm_api_key=None, google_places_api_key=None, yelp_api_key=None, **kwargs):
         self.knowledge_base_built = False
         self.dish_names = ["Ramen", "Salad"]
 
@@ -97,7 +97,7 @@ def _reset_engine_cache():
 def test_build_kb_endpoint(monkeypatch):
     """Build knowledge base endpoint returns stats."""
     monkeypatch.setattr(rec_api, "RAGRecommendationEngine", _FakeEngine)
-    monkeypatch.setattr(settings, "gemini_api_key", "test-key")
+    monkeypatch.setattr(settings, "deepseek_api_key", "test-key")
     _reset_engine_cache()
 
     client = _create_client()
@@ -115,7 +115,7 @@ def test_build_kb_endpoint(monkeypatch):
 def test_recommend_endpoint(monkeypatch):
     """Recommend endpoint returns recommendations."""
     monkeypatch.setattr(rec_api, "RAGRecommendationEngine", _FakeEngine)
-    monkeypatch.setattr(settings, "gemini_api_key", "test-key")
+    monkeypatch.setattr(settings, "deepseek_api_key", "test-key")
     _reset_engine_cache()
 
     client = _create_client()
@@ -138,7 +138,7 @@ def test_recommend_endpoint(monkeypatch):
 def test_taste_texture_endpoint(monkeypatch):
     """Taste/texture endpoint returns round 1 prediction."""
     monkeypatch.setattr(rec_api, "TasteTexturePredictor", _FakePredictor)
-    monkeypatch.setattr(settings, "gemini_api_key", "test-key")
+    monkeypatch.setattr(settings, "deepseek_api_key", "test-key")
     _reset_engine_cache()
 
     client = _create_client()
@@ -159,7 +159,7 @@ def test_taste_texture_endpoint(monkeypatch):
 
 def test_endpoint_missing_api_key(monkeypatch):
     """Endpoints fail gracefully without API keys."""
-    monkeypatch.setattr(settings, "gemini_api_key", "")
+    monkeypatch.setattr(settings, "deepseek_api_key", "")
     _reset_engine_cache()
 
     client = _create_client()
@@ -173,4 +173,24 @@ def test_endpoint_missing_api_key(monkeypatch):
     )
 
     assert response.status_code == 500
-    assert "GEMINI_API_KEY" in response.text
+    assert "DEEPSEEK_API_KEY" in response.text
+
+
+def test_demo_rate_limit_returns_429(monkeypatch):
+    """Per-IP demo limit rejects requests beyond the hourly quota."""
+    from app.core import rate_limit
+
+    monkeypatch.setattr(rec_api, "TasteTexturePredictor", _FakePredictor)
+    monkeypatch.setattr(settings, "deepseek_api_key", "test-key")
+    monkeypatch.setattr(settings, "demo_rate_limit_per_hour", 2)
+    rate_limit.reset_demo_limits()
+
+    client = _create_client()
+    payload = {"dish_name": "Ramen", "description": "Spicy noodles", "include_reviews": False}
+    codes = [
+        client.post("/api/v1/recommendation/taste-texture", json=payload).status_code
+        for _ in range(3)
+    ]
+    rate_limit.reset_demo_limits()
+
+    assert codes == [200, 200, 429]

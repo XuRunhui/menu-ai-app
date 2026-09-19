@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, MapPin, Star, Loader2, ChevronRight, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils/cn';
-import { searchPlaces, getPlaceDetails, buildKnowledgeBase, type GooglePlace } from '@/lib/api';
+import { searchPlaces, getPlaceDetails, type GooglePlace } from '@/lib/api';
 import { useAppContext } from '@/context/AppContext';
+import { rememberRestaurant } from '@/lib/localHistory';
+import { DEMO_RESTAURANT_QUERY } from '@/lib/demoTour';
 
 function StarRating({ rating }: { rating?: number }) {
   if (!rating) return null;
@@ -30,9 +32,12 @@ function PriceLevel({ level }: { level?: number }) {
 
 export default function PlaceSearchPanel() {
   const router = useRouter();
-  const { setPlaceDetails, setRestaurant, setKnowledgeBaseStatus } = useAppContext();
+  const { openPlace } = useAppContext();
+  // The tour's second step lands here with ?demo=2 and searches for its sample restaurant.
+  const searchParams = useSearchParams();
+  const fromTour = searchParams.get('demo') === '2';
 
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(fromTour ? DEMO_RESTAURANT_QUERY : '');
   const [results, setResults] = useState<GooglePlace[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -40,18 +45,22 @@ export default function PlaceSearchPanel() {
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  const handleSearch = async (text: string = query) => {
+    if (!text.trim()) return;
     setIsSearching(true);
     setError(null);
     setResults([]);
     setHasSearched(true);
 
     try {
-      const data = await searchPlaces(query.trim());
+      const data = await searchPlaces(text.trim());
       setResults(data.results ?? []);
       if ((data.results ?? []).length === 0) {
-        setError('No restaurants found. Try a different search term.');
+        setError(
+          data.status && data.status !== 'ZERO_RESULTS' && data.status !== 'OK'
+            ? `Search is unavailable right now (Google: ${data.status}).`
+            : 'No restaurants found. Try a different search term.'
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed. Please try again.');
@@ -60,37 +69,27 @@ export default function PlaceSearchPanel() {
     }
   };
 
+  const tourSearched = useRef(false);
+  useEffect(() => {
+    if (!fromTour || tourSearched.current) return;
+    tourSearched.current = true;
+    router.replace('/search?mode=places'); // Back or a refresh shouldn't search again
+    queueMicrotask(() => void handleSearch(DEMO_RESTAURANT_QUERY));
+    // Runs once, on arrival from the tour.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromTour]);
+
   const handleSelect = async (place: GooglePlace) => {
     setSelectedId(place.place_id);
     setIsSelecting(true);
     setError(null);
 
     try {
-      const details = await getPlaceDetails(place.place_id);
-      setPlaceDetails(details);
-      setRestaurant({
-        place_id: place.place_id,
-        name: place.name,
-        location: place.formatted_address ?? '',
-        rating: place.rating,
-        user_ratings_total: place.user_ratings_total,
-        price_level: place.price_level,
-        photo_urls: details.place.photo_urls ?? [],
-        website: details.place.website,
-        formatted_phone_number: details.place.formatted_phone_number,
-      });
+      const details = await getPlaceDetails(place.place_id, query.trim());
+      openPlace(details);
 
-      // Fire knowledge base build in background (non-blocking)
-      setKnowledgeBaseStatus('building');
-      buildKnowledgeBase({
-        restaurant_name: place.name,
-        location: place.formatted_address ?? '',
-        place_id: place.place_id,
-      })
-        .then(() => setKnowledgeBaseStatus('ready'))
-        .catch(() => setKnowledgeBaseStatus('error'));
-
-      router.push('/results');
+      rememberRestaurant({ placeId: place.place_id, label: place.name });
+      router.push(`/results?place=${encodeURIComponent(place.place_id)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load restaurant details.');
       setIsSelecting(false);
@@ -113,7 +112,7 @@ export default function PlaceSearchPanel() {
           />
         </div>
         <Button
-          onClick={handleSearch}
+          onClick={() => handleSearch()}
           disabled={isSearching || !query.trim()}
           className="shrink-0 gap-1.5"
         >

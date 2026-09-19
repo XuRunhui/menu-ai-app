@@ -17,7 +17,7 @@ class _FakeModel:
     def __init__(self, model_name: str):
         self.model_name = model_name
 
-    def encode(self, texts, show_progress_bar=False, convert_to_numpy=True):
+    def encode(self, texts, show_progress_bar=False, convert_to_numpy=True, **kwargs):
         def to_vec(text: str) -> np.ndarray:
             text_lower = text.lower()
             return np.array(

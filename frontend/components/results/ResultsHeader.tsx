@@ -1,6 +1,6 @@
 'use client';
 
-import { MapPin, Star, Globe, Phone, Loader2 } from 'lucide-react';
+import { MapPin, Star, Globe, Phone } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
 
 function PriceLevel({ level }: { level?: number }) {
@@ -13,7 +13,11 @@ function PriceLevel({ level }: { level?: number }) {
 }
 
 export default function ResultsHeader() {
-  const { restaurant, knowledgeBaseStatus, parsedMenu, entryMode } = useAppContext();
+  const { restaurant, parsedMenu, menuSources } = useAppContext();
+  // The website Google lists can belong to someone else now (expired domains get bought up);
+  // once the menu lookup has found that, stop sending people there.
+  const websiteDisowned = menuSources?.placeId === restaurant?.place_id &&
+    menuSources?.website?.website_trusted === false;
 
   if (!restaurant?.name) {
     return (
@@ -70,7 +74,16 @@ export default function ResultsHeader() {
             </div>
 
             <div className="flex items-center gap-3 mt-2 flex-wrap">
-              {restaurant.website && (
+              {restaurant.website && websiteDisowned && (
+                <span
+                  className="flex items-center gap-1 text-xs text-amber-700"
+                  title={restaurant.website}
+                >
+                  <Globe className="w-3 h-3" />
+                  Listed website no longer belongs to this restaurant
+                </span>
+              )}
+              {restaurant.website && !websiteDisowned && (
                 <a
                   href={restaurant.website}
                   target="_blank"
@@ -90,19 +103,6 @@ export default function ResultsHeader() {
             </div>
           </div>
 
-          {/* KB status indicator */}
-          {knowledgeBaseStatus === 'building' && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-2 rounded-lg shrink-0">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              Loading AI insights…
-            </div>
-          )}
-          {knowledgeBaseStatus === 'ready' && entryMode === 'places' && (
-            <div className="flex items-center gap-2 text-xs text-primary bg-primary/10 px-3 py-2 rounded-lg shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-              AI insights ready
-            </div>
-          )}
         </div>
       </div>
     </div>

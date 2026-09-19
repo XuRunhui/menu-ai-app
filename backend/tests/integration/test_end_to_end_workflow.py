@@ -5,11 +5,11 @@ import sys
 
 import pytest
 
-pytest.importorskip("google.genai")
+pytest.importorskip("openai")
 pytest.importorskip("sentence_transformers")
 pytest.importorskip("numpy")
 pytest.importorskip("requests")
-pytest.importorskip("duckduckgo_search")
+pytest.importorskip("ddgs")
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
@@ -24,16 +24,16 @@ async def test_complete_recommendation_workflow():
     if not os.getenv("RUN_INTEGRATION_TESTS"):
         pytest.skip("Set RUN_INTEGRATION_TESTS=1 to run integration tests")
 
-    gemini_key = os.getenv("GEMINI_API_KEY")
-    if not gemini_key:
-        pytest.skip("GEMINI_API_KEY not set")
+    llm_key = os.getenv("DEEPSEEK_API_KEY")
+    if not llm_key:
+        pytest.skip("DEEPSEEK_API_KEY not set")
 
     google_key = os.getenv("GOOGLE_PLACES_API_KEY")
     yelp_key = os.getenv("YELP_API_KEY")
     place_id = os.getenv("GOOGLE_PLACE_ID")
 
     engine = RAGRecommendationEngine(
-        gemini_api_key=gemini_key,
+        llm_api_key=llm_key,
         google_places_api_key=google_key,
         yelp_api_key=yelp_key
     )
@@ -54,7 +54,7 @@ async def test_complete_recommendation_workflow():
     context = engine.get_dish_context(top_rec["dish_name"])
     assert context is not None
 
-    predictor = TasteTexturePredictor(api_key=gemini_key)
+    predictor = TasteTexturePredictor(api_key=llm_key)
     round1 = await predictor.predict_round1(
         top_rec["dish_name"],
         context.get("menu_description", "") or "Popular bakery item"

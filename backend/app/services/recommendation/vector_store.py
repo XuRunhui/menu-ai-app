@@ -1,11 +1,24 @@
 """Simple in-memory vector store for RAG."""
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Optional
 import logging
 
+from app.services.embeddings import embed_texts, get_model
+
 logger = logging.getLogger(__name__)
+
+# Resolved on first use: importing sentence-transformers loads PyTorch, which adds seconds to every
+# cold start even though only restaurant search needs embeddings. (Tests may patch this attribute.)
+SentenceTransformer = None
+
+
+def _sentence_transformer_class():
+    global SentenceTransformer
+    if SentenceTransformer is None:
+        from sentence_transformers import SentenceTransformer as model_class
+        SentenceTransformer = model_class
+    return SentenceTransformer
 
 
 class VectorStore:
@@ -17,11 +30,11 @@ class VectorStore:
         Args:
             model_name: HuggingFace model name (lightweight by default)
         """
-        logger.info(f"Loading embedding model: {model_name}")
-        self.model = SentenceTransformer(model_name)
+        self.model_name = model_name
+        # Shared across all restaurants' vector stores instead of loading a copy per restaurant.
+        self.model = get_model(model_name, _sentence_transformer_class())
         self.documents = []
         self.embeddings = None
-        logger.info("Embedding model loaded successfully")
 
     def add_documents(self, documents: List[Dict]):
         """Add documents to the vector store.
@@ -39,12 +52,8 @@ class VectorStore:
         texts = [doc["text"] for doc in self.documents]
         logger.info(f"Creating embeddings for {len(texts)} documents...")
 
-        # Encode in batches for better performance
-        self.embeddings = self.model.encode(
-            texts,
-            show_progress_bar=False,
-            convert_to_numpy=True
-        )
+        # Previously seen texts come from the embedding cache; only new ones are encoded.
+        self.embeddings = embed_texts(self.model, self.model_name, texts)
 
         logger.info(f"Embeddings created: shape {self.embeddings.shape}")
 
@@ -114,5 +123,5 @@ class VectorStore:
         return {
             "total_documents": len(self.documents),
             "embedding_dimension": self.embeddings.shape[1] if self.embeddings is not None else 0,
-            "model_name": self.model.get_sentence_embedding_dimension()
+            "model_name": self.model_name
         }

@@ -5,11 +5,21 @@ import type { DishContextResponse } from '@/lib/types';
 
 interface DishLLMSummaryProps {
   loading: boolean;
+  /** The flavor prediction is still on its way; the description shows meanwhile. */
+  tagsLoading?: boolean;
   context: DishContextResponse | null;
   fallbackDescription?: string | null;
+  /** Menu description in the chosen language, shown alongside the original. */
+  translatedDescription?: string | null;
 }
 
-export default function DishLLMSummary({ loading, context, fallbackDescription }: DishLLMSummaryProps) {
+export default function DishLLMSummary({
+  loading,
+  tagsLoading = false,
+  context,
+  fallbackDescription,
+  translatedDescription,
+}: DishLLMSummaryProps) {
   if (loading) {
     return (
       <div className="space-y-3 py-2">
@@ -24,16 +34,29 @@ export default function DishLLMSummary({ loading, context, fallbackDescription }
   }
 
   const description = context?.menu_description ?? fallbackDescription;
-  const flavorProfile = context?.taste_texture?.round2?.flavor_profile;
-  const tastes = context?.taste_texture?.round2?.tastes ?? [];
-  const textures = context?.taste_texture?.round2?.textures ?? [];
+  // Refined with reviews when any mention the dish; otherwise read from the description alone.
+  const prediction = context?.taste_texture?.round2 ?? context?.taste_texture?.round1;
+  const flavorProfile = prediction?.flavor_profile;
+  const tastes = prediction?.tastes ?? [];
+  const textures = prediction?.textures ?? [];
   const allTags = [...tastes, ...textures];
+  const metadata = context?.metadata;
+  const hasMetadata = Boolean(
+    metadata &&
+      (metadata.price != null ||
+        (metadata.spicy_level ?? 0) > 0 ||
+        metadata.dietary_tags?.length ||
+        metadata.allergens?.length)
+  );
 
-  if (!description && allTags.length === 0) return null;
+  const original = translatedDescription && translatedDescription !== description ? description : null;
+  const primary = translatedDescription ?? description;
+
+  if (!primary && allTags.length === 0 && !tagsLoading) return null;
 
   return (
     <div className="space-y-4">
-      {description && (
+      {primary && (
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
@@ -42,8 +65,13 @@ export default function DishLLMSummary({ loading, context, fallbackDescription }
             </span>
           </div>
           <p className="text-foreground leading-relaxed">
-            {description}
+            {primary}
           </p>
+          {original && (
+            <p className="text-muted-foreground leading-relaxed mt-1.5">
+              {original}
+            </p>
+          )}
         </div>
       )}
 
@@ -51,6 +79,12 @@ export default function DishLLMSummary({ loading, context, fallbackDescription }
         <blockquote className="border-l-2 border-primary/30 pl-4 italic text-muted-foreground text-sm leading-relaxed">
           {flavorProfile}
         </blockquote>
+      )}
+
+      {tagsLoading && (
+        <div className="flex gap-2 pt-1" aria-label="Reading the flavors">
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-6 w-16 rounded-full" />)}
+        </div>
       )}
 
       {allTags.length > 0 && (
@@ -68,21 +102,21 @@ export default function DishLLMSummary({ loading, context, fallbackDescription }
         </div>
       )}
 
-      {context?.metadata && (
+      {hasMetadata && metadata && (
         <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap pt-1">
-          {context.metadata.price != null && (
+          {metadata.price != null && (
             <span className="font-medium text-foreground">
-              ${context.metadata.price.toFixed(2)}
+              ${metadata.price.toFixed(2)}
             </span>
           )}
-          {context.metadata.spicy_level != null && context.metadata.spicy_level > 0 && (
-            <span>{'🌶️'.repeat(Math.min(context.metadata.spicy_level, 5))}</span>
+          {metadata.spicy_level != null && metadata.spicy_level > 0 && (
+            <span>{'🌶️'.repeat(Math.min(metadata.spicy_level, 5))}</span>
           )}
-          {context.metadata.dietary_tags?.map((tag) => (
+          {metadata.dietary_tags?.map((tag) => (
             <span key={tag} className="capitalize">{tag}</span>
           ))}
-          {context.metadata.allergens && context.metadata.allergens.length > 0 && (
-            <span>Contains: {context.metadata.allergens.join(', ')}</span>
+          {metadata.allergens && metadata.allergens.length > 0 && (
+            <span>Contains: {metadata.allergens.join(', ')}</span>
           )}
         </div>
       )}

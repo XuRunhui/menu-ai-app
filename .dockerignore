@@ -1,0 +1,16 @@
+**/node_modules
+**/.next
+**/__pycache__
+**/.pytest_cache
+.git
+.env
+.env.*
+!.env.example
+mobile
+backend/.cache/dish_images
+backend/.data
+backend/tests
+*.md
+!deploy/**/*.md
+bcd_tofu_house.png
+/sample-menu.png

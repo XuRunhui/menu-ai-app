@@ -1,12 +1,14 @@
 """Recommendation API endpoints for RAG-based dish suggestions."""
 
 from typing import Dict, List, Optional
+import asyncio
 import logging
 import time
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.core.config import settings
+from app.core.rate_limit import enforce_demo_limits
 from app.models.recommendation import (
     BuildKnowledgeBaseRequest,
     BuildKnowledgeBaseResponse,
@@ -31,21 +33,31 @@ def _cache_key(restaurant_name: str, location: str) -> str:
 
 
 def _get_engine(restaurant_name: str, location: str) -> RAGRecommendationEngine:
+    """The restaurant's engine, created on first use.
+
+    Blocking: a new engine imports PyTorch and loads the embedding model, which took 46 s on a cold
+    Cloud Run instance. Endpoints call it through ``_engine_for`` so that runs off the event loop.
+    """
     global _LAST_ENGINE_KEY
     key = _cache_key(restaurant_name, location)
     engine = _ENGINE_CACHE.get(key)
     if not engine:
         engine = RAGRecommendationEngine(
-            gemini_api_key=settings.gemini_api_key,
+            llm_api_key=settings.deepseek_api_key,
             google_places_api_key=settings.google_places_api_key,
             yelp_api_key=settings.yelp_api_key,
-            model_name=settings.gemini_model,
             cache_enabled=settings.rag_cache_enabled,
             cache_ttl_seconds=settings.rag_cache_ttl_seconds
         )
         _ENGINE_CACHE[key] = engine
     _LAST_ENGINE_KEY = key
     return engine
+
+
+async def _engine_for(restaurant_name: str, location: str) -> RAGRecommendationEngine:
+    """``_get_engine`` in a worker thread. On the event loop, a slow model load froze every other
+    request with it: a HuggingFace rate limit once held a whole results page for 150 s."""
+    return await asyncio.to_thread(_get_engine, restaurant_name, location)
 
 
 def _get_last_engine() -> Optional[RAGRecommendationEngine]:
@@ -90,14 +102,14 @@ def _calc_improvement(round1: Dict, round2: Dict) -> Optional[float]:
         return None
 
 
-@router.post("/build-knowledge-base", response_model=BuildKnowledgeBaseResponse)
+@router.post("/build-knowledge-base", response_model=BuildKnowledgeBaseResponse, dependencies=[Depends(enforce_demo_limits)])
 async def build_knowledge_base(request: BuildKnowledgeBaseRequest):
     """Build or rebuild a knowledge base for a restaurant."""
     if not request.restaurant_name.strip() or not request.location.strip():
         raise HTTPException(status_code=400, detail="restaurant_name and location are required")
 
-    if not settings.gemini_api_key:
-        msg = "GEMINI_API_KEY environment variable not set"
+    if not settings.deepseek_api_key:
+        msg = "DEEPSEEK_API_KEY environment variable not set"
         logger.error(msg)
         raise HTTPException(status_code=500, detail=msg)
 
@@ -105,7 +117,7 @@ async def build_knowledge_base(request: BuildKnowledgeBaseRequest):
     start_time = time.perf_counter()
 
     try:
-        engine = _get_engine(request.restaurant_name, request.location)
+        engine = await _engine_for(request.restaurant_name, request.location)
         stats = await engine.build_knowledge_base(
             restaurant_name=request.restaurant_name,
             location=request.location,
@@ -141,7 +153,7 @@ async def build_knowledge_base(request: BuildKnowledgeBaseRequest):
     )
 
 
-@router.post("/recommend", response_model=RecommendationResponse)
+@router.post("/recommend", response_model=RecommendationResponse, dependencies=[Depends(enforce_demo_limits)])
 async def recommend_dishes(
     request: RecommendationRequest,
     include_taste_texture: bool = Query(False, description="Add taste/texture predictions")
@@ -152,13 +164,13 @@ async def recommend_dishes(
     if not request.user_preferences.strip():
         raise HTTPException(status_code=400, detail="user_preferences is required")
 
-    if request.use_llm_enhancement and not settings.gemini_api_key:
-        msg = "GEMINI_API_KEY environment variable not set"
+    if request.use_llm_enhancement and not settings.deepseek_api_key:
+        msg = "DEEPSEEK_API_KEY environment variable not set"
         logger.error(msg)
         raise HTTPException(status_code=500, detail=msg)
 
-    if include_taste_texture and not settings.gemini_api_key:
-        msg = "GEMINI_API_KEY environment variable not set"
+    if include_taste_texture and not settings.deepseek_api_key:
+        msg = "DEEPSEEK_API_KEY environment variable not set"
         logger.error(msg)
         raise HTTPException(status_code=500, detail=msg)
 
@@ -166,7 +178,7 @@ async def recommend_dishes(
     start_time = time.perf_counter()
 
     try:
-        engine = _get_engine(request.restaurant_name, request.location)
+        engine = await _engine_for(request.restaurant_name, request.location)
         if not engine.knowledge_base_built:
             await engine.build_knowledge_base(
                 restaurant_name=request.restaurant_name,
@@ -195,8 +207,7 @@ async def recommend_dishes(
 
     if include_taste_texture and recommendations:
         predictor = TasteTexturePredictor(
-            api_key=settings.gemini_api_key,
-            model_name=settings.gemini_model
+            api_key=settings.deepseek_api_key
         )
         for rec in recommendations:
             context = engine.get_dish_context(rec["dish_name"]) or {}
@@ -239,14 +250,14 @@ async def recommend_dishes(
     )
 
 
-@router.post("/taste-texture", response_model=TasteTextureResponse)
+@router.post("/taste-texture", response_model=TasteTextureResponse, dependencies=[Depends(enforce_demo_limits)])
 async def taste_texture(request: TasteTextureRequest):
     """Predict taste and texture for a dish."""
     if not request.dish_name.strip() or not request.description.strip():
         raise HTTPException(status_code=400, detail="dish_name and description are required")
 
-    if not settings.gemini_api_key:
-        msg = "GEMINI_API_KEY environment variable not set"
+    if not settings.deepseek_api_key:
+        msg = "DEEPSEEK_API_KEY environment variable not set"
         logger.error(msg)
         raise HTTPException(status_code=500, detail=msg)
 
@@ -254,8 +265,7 @@ async def taste_texture(request: TasteTextureRequest):
     start_time = time.perf_counter()
 
     predictor = TasteTexturePredictor(
-        api_key=settings.gemini_api_key,
-        model_name=settings.gemini_model
+        api_key=settings.deepseek_api_key
     )
 
     round1 = await predictor.predict_round1(request.dish_name, request.description)
@@ -293,7 +303,7 @@ async def taste_texture(request: TasteTextureRequest):
     )
 
 
-@router.get("/dish/{dish_name}")
+@router.get("/dish/{dish_name}", dependencies=[Depends(enforce_demo_limits)])
 async def get_dish_context(
     request: Request,
     dish_name: str,
@@ -308,7 +318,7 @@ async def get_dish_context(
     start_time = time.perf_counter()
 
     try:
-        engine = _get_engine(restaurant_name, location)
+        engine = await _engine_for(restaurant_name, location)
         if not engine.knowledge_base_built:
             await engine.build_knowledge_base(
                 restaurant_name=restaurant_name,
@@ -324,10 +334,9 @@ async def get_dish_context(
         raise HTTPException(status_code=404, detail="Dish not found in knowledge base")
 
     taste_texture = None
-    if settings.gemini_api_key and context.get("menu_description"):
+    if settings.deepseek_api_key and context.get("menu_description"):
         predictor = TasteTexturePredictor(
-            api_key=settings.gemini_api_key,
-            model_name=settings.gemini_model
+            api_key=settings.deepseek_api_key
         )
         round1 = await predictor.predict_round1(dish_name, context["menu_description"])
         round2 = None

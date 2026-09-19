@@ -6,7 +6,7 @@ import sys
 import pytest
 
 pytest.importorskip("requests")
-pytest.importorskip("duckduckgo_search")
+pytest.importorskip("ddgs")
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -22,7 +22,7 @@ def test_aggregate_results_partial_failure():
             "source": "Google Places",
             "success": True,
             "data": {
-                "place": {"photo_urls": ["https://img.test/photo1.jpg"]},
+                "place": {},
                 "reviews": [{"text": "Amazing ramen", "rating": 5}],
                 "popular_dishes": [{"name": "Ramen", "mention_count": 2}]
             }
@@ -60,7 +60,7 @@ def test_aggregate_results_deduplication():
             "source": "Google Places",
             "success": True,
             "data": {
-                "place": {"photo_urls": ["https://img.test/photo1.jpg"]},
+                "place": {},
                 "reviews": [{"text": "Amazing ramen with rich broth"}],
                 "popular_dishes": []
             }

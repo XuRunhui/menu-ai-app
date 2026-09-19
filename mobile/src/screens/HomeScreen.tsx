@@ -54,7 +54,7 @@ export default function HomeScreen({ navigation }: { navigation: NavProp }) {
         </View>
 
         <Text style={styles.footer}>
-          Powered by Gemini Vision · Google Places · RAG
+          Powered by DeepSeek Vision · Google Places · RAG
         </Text>
       </ScrollView>
     </SafeAreaView>

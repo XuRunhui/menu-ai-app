@@ -67,9 +67,10 @@ next-env.d.ts
 .DS_Store
 
 # Docker
-.dockerignore
 
 # Database
+backend/.data/
+deploy/knowledge/*.db
 *.db
 *.sqlite
 *.sqlite3
@@ -93,3 +94,4 @@ magicui/
 *.jpg
 *.png
 *.webp
+.run/

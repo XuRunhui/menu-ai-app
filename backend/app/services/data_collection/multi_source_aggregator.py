@@ -3,14 +3,12 @@
 import asyncio
 import logging
 import re
-import copy
-from datetime import datetime, timezone
 from typing import Optional
 
+from app.services import cache_service
 from app.services.google_places_service import GooglePlacesService
 from .ddgs_collector import DDGSCollector
 from .yelp_collector import YelpCollector
-from .cache_store import LocalCacheStore
 
 logger = logging.getLogger(__name__)
 
@@ -46,14 +44,16 @@ class MultiSourceAggregator:
         google_api_key: Optional[str] = None,
         yelp_api_key: Optional[str] = None,
         cache_enabled: bool = True,
-        cache_ttl_seconds: int = 604800,
-        cache_store: Optional[LocalCacheStore] = None
+        cache_ttl_seconds: int = 604800
     ):
         """Initialize aggregator with API keys.
 
         Args:
             google_api_key: Google Places API key (optional)
             yelp_api_key: Yelp Fusion API key (optional)
+            cache_enabled: Reuse DuckDuckGo results from the web_search_cache table
+                (Google and Yelp are always fetched live; their terms don't allow storing content)
+            cache_ttl_seconds: Kept for compatibility; the cache TTL lives in cache_service
 
         Example:
             >>> # With all keys
@@ -70,11 +70,7 @@ class MultiSourceAggregator:
         self.google = GooglePlacesService(google_api_key) if google_api_key else None
         self.ddgs = DDGSCollector()
         self.yelp = YelpCollector(yelp_api_key) if yelp_api_key else None
-        self.cache_store = cache_store
-        if cache_enabled:
-            self.cache_store = cache_store or LocalCacheStore(
-                default_ttl_seconds=cache_ttl_seconds
-            )
+        self.cache_enabled = cache_enabled
 
         # Log which sources are available
         available = []
@@ -109,46 +105,38 @@ class MultiSourceAggregator:
         """
         logger.info(f"Starting multi-source collection for {restaurant_name}, {location}")
 
-        cache_key = self._build_cache_key(restaurant_name, location, place_id)
-        if self.cache_store:
-            cached_entry = self.cache_store.get(cache_key)
-            if cached_entry:
-                cached_data = copy.deepcopy(cached_entry.data)
-                cached_meta = cached_data.get("metadata", {})
-                cached_meta["cache_hit"] = True
-                cached_meta["cached_at"] = datetime.fromtimestamp(
-                    cached_entry.cached_at,
-                    tz=timezone.utc
-                ).isoformat()
-                cached_data["metadata"] = cached_meta
-                logger.info(f"Cache hit for {cache_key}")
-                return cached_data
+        # Run all collectors in parallel; DuckDuckGo results may come from the cache.
+        cached_ddgs = (
+            cache_service.get_web_search(restaurant_name, location) if self.cache_enabled else None
+        )
 
-        # Run all collectors in parallel
         tasks = []
-
         if self.google and place_id:
             tasks.append(self._safe_collect_google(place_id))
-
-        if self.ddgs:
+        if self.ddgs and cached_ddgs is None:
             tasks.append(self._safe_collect_ddgs(restaurant_name, location))
-
         if self.yelp:
             tasks.append(self._safe_collect_yelp(restaurant_name, location))
 
-        # Wait for all (with timeout)
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = list(await asyncio.gather(*tasks, return_exceptions=True))
 
-        # Aggregate results
+        if cached_ddgs is not None:
+            logger.info(f"DuckDuckGo cache hit for {restaurant_name}, {location}")
+            results.append({"source": "DuckDuckGo", "data": cached_ddgs[0], "success": True})
+        elif self.cache_enabled:
+            for result in results:
+                if (
+                    isinstance(result, dict)
+                    and result.get("source") == "DuckDuckGo"
+                    and result.get("success")
+                    and (result["data"].get("reviews") or result["data"].get("images"))
+                ):
+                    cache_service.set_web_search(restaurant_name, location, result["data"])
+
         aggregated = self._aggregate_results(results)
-        aggregated_meta = aggregated.get("metadata", {})
-        aggregated_meta["cache_hit"] = False
-        aggregated_meta["cached_at"] = datetime.now(tz=timezone.utc).isoformat()
-        aggregated["metadata"] = aggregated_meta
-
-        if self.cache_store:
-            self.cache_store.set(cache_key, aggregated)
-
+        aggregated["metadata"]["cache_hit"] = cached_ddgs is not None
+        if cached_ddgs is not None:
+            aggregated["metadata"]["cached_at"] = cached_ddgs[1].isoformat()
         return aggregated
 
     async def _safe_collect_google(self, place_id: str) -> dict:
@@ -308,14 +296,6 @@ class MultiSourceAggregator:
                         "_source": "google_places"
                     })
 
-                # Add photos as images
-                for photo_url in place.get("photo_urls", []):
-                    aggregated["images"].append({
-                        "url": photo_url,
-                        "source": "google_places",
-                        "type": "restaurant_photo"
-                    })
-
                 # Add popular dishes
                 aggregated["popular_dishes"].extend(popular_dishes)
 
@@ -416,10 +396,3 @@ class MultiSourceAggregator:
             logger.info(f"Removed {removed} duplicate images")
 
         return unique
-
-    def _build_cache_key(self, restaurant_name: str, location: str, place_id: Optional[str]) -> str:
-        key_base = f"{restaurant_name}::{location}"
-        if place_id:
-            key_base = f"{key_base}::{place_id}"
-        normalized = re.sub(r"[^a-z0-9]+", "-", key_base.lower()).strip("-")
-        return normalized

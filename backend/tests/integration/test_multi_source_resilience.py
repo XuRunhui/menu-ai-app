@@ -5,11 +5,11 @@ import sys
 
 import pytest
 
-pytest.importorskip("google.genai")
+pytest.importorskip("openai")
 pytest.importorskip("sentence_transformers")
 pytest.importorskip("numpy")
 pytest.importorskip("requests")
-pytest.importorskip("duckduckgo_search")
+pytest.importorskip("ddgs")
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
@@ -23,12 +23,12 @@ async def test_system_works_with_one_source():
     if not os.getenv("RUN_INTEGRATION_TESTS"):
         pytest.skip("Set RUN_INTEGRATION_TESTS=1 to run integration tests")
 
-    gemini_key = os.getenv("GEMINI_API_KEY")
-    if not gemini_key:
-        pytest.skip("GEMINI_API_KEY not set")
+    llm_key = os.getenv("DEEPSEEK_API_KEY")
+    if not llm_key:
+        pytest.skip("DEEPSEEK_API_KEY not set")
 
     engine = RAGRecommendationEngine(
-        gemini_api_key=gemini_key,
+        llm_api_key=llm_key,
         google_places_api_key=None,
         yelp_api_key=None
     )
@@ -51,8 +51,8 @@ async def test_system_handles_all_failures(monkeypatch):
     if not os.getenv("RUN_INTEGRATION_TESTS"):
         pytest.skip("Set RUN_INTEGRATION_TESTS=1 to run integration tests")
 
-    gemini_key = os.getenv("GEMINI_API_KEY", "dummy")
-    engine = RAGRecommendationEngine(gemini_api_key=gemini_key)
+    llm_key = os.getenv("DEEPSEEK_API_KEY", "dummy")
+    engine = RAGRecommendationEngine(llm_api_key=llm_key)
 
     async def _fake_collect_all_data(restaurant_name, location, place_id=None):
         return {

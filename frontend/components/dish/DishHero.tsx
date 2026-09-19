@@ -3,6 +3,10 @@ import { cn } from '@/lib/utils/cn';
 interface DishHeroProps {
   name: string;
   photoUrl?: string | null;
+  /** Credit line required by the photo's license, shown over the image. */
+  credit?: string;
+  /** Translated dish name, shown under the original. */
+  subtitle?: string | null;
 }
 
 function getHeroGradient(name: string): string {
@@ -24,7 +28,7 @@ function getHeroGradient(name: string): string {
   return gradients[Math.abs(hash) % gradients.length];
 }
 
-export default function DishHero({ name, photoUrl }: DishHeroProps) {
+export default function DishHero({ name, photoUrl, credit, subtitle }: DishHeroProps) {
   const initial = name.charAt(0).toUpperCase();
   const gradient = getHeroGradient(name);
 
@@ -32,11 +36,18 @@ export default function DishHero({ name, photoUrl }: DishHeroProps) {
     <div className="relative w-full h-64 md:h-80 overflow-hidden">
       {photoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={photoUrl}
-          alt={name}
-          className="w-full h-full object-cover"
-        />
+        <>
+          <img
+            src={photoUrl}
+            alt={name}
+            className="w-full h-full object-cover"
+          />
+          {credit && (
+            <p className="absolute bottom-1 right-2 z-10 text-[10px] text-white/80 drop-shadow">
+              Photo: {credit}
+            </p>
+          )}
+        </>
       ) : (
         <div className={cn(
           'w-full h-full bg-gradient-to-br flex items-center justify-center',
@@ -56,6 +67,9 @@ export default function DishHero({ name, photoUrl }: DishHeroProps) {
         <h1 className="font-display text-4xl md:text-5xl font-light text-foreground leading-tight">
           {name}
         </h1>
+        {subtitle && subtitle !== name && (
+          <p className="text-muted-foreground mt-1">{subtitle}</p>
+        )}
       </div>
     </div>
   );

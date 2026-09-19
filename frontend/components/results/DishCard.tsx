@@ -4,14 +4,17 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { getDishImage } from '@/lib/api';
-import type { MenuItem } from '@/lib/types';
+import { getDishImage, knownDishImage } from '@/lib/api';
+import { useAppContext } from '@/context/AppContext';
+import type { AltPrice, MenuItem, MenuSourceKind } from '@/lib/types';
 
 interface DishCardProps {
   item: MenuItem;
   isRecommended: boolean;
   restaurantName?: string;  // needed to trigger image fetch; omit for upload-only flow
   showTranslation?: boolean;
+  /** The description is a reviewer's words, not the menu's: shown, but not used to find the photo. */
+  descriptionIsQuote?: boolean;
   className?: string;
 }
 
@@ -22,6 +25,17 @@ function formatPrice(item: MenuItem): string | null {
     return `${symbol}${item.price.toFixed(2)}`;
   }
   return null;
+}
+
+const SOURCE_BADGES: Record<MenuSourceKind, { label: string; className: string }> = {
+  upload: { label: 'Your photo', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  website: { label: 'Website', className: 'bg-sky-50 text-sky-700 border-sky-200' },
+  reviews: { label: 'Reviews', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+};
+
+function formatAltPrice(alt: AltPrice): string | null {
+  if (alt.price_original) return alt.price_original;
+  return alt.price != null ? `${alt.currency ?? '$'}${alt.price.toFixed(2)}` : null;
 }
 
 // Deterministic pastel gradient from dish name (fallback when no image)
@@ -49,24 +63,50 @@ export default function DishCard({
   isRecommended,
   restaurantName,
   showTranslation = false,
+  descriptionIsQuote = false,
   className,
 }: DishCardProps) {
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const { resultsQuery } = useAppContext();
+  // A card mounts again whenever its category is reopened; start from the photo already found.
+  const [imageUrl, setImageUrl] = useState<string | null>(
+    () => knownDishImage(item.name, restaurantName)?.image_url ?? null
+  );
+  const [imageCredit, setImageCredit] = useState(() => knownDishImage(item.name, restaurantName)?.attribution ?? '');
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  const displayName = (showTranslation && item.name_translated) ? item.name_translated : item.name;
+  // With a translation on, show the translated text first and keep the original underneath —
+  // unless the "translation" only changes capitals ("Japchae" / "japchae").
+  const same = (a?: string | null, b?: string | null) =>
+    (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
+  const translatedName = showTranslation && !same(item.name_translated, item.name) ? item.name_translated : null;
+  const displayName = translatedName ?? item.name;
+  const originalName = translatedName ? item.name : null;
+  const translatedDescription =
+    showTranslation && !same(item.description_translated, item.description) ? item.description_translated : null;
+  const displayDescription = translatedDescription ?? item.description;
+  const originalDescription = translatedDescription ? item.description : null;
   const price = formatPrice(item);
   const encodedName = encodeURIComponent(item.name);
+  // Only combined menus carry sources; a single uploaded menu shows no badges.
+  const sources = item.sources ?? [];
+  const altPrices = (item.alt_prices ?? [])
+    .map((alt) => ({ source: SOURCE_BADGES[alt.source]?.label ?? alt.source, price: formatAltPrice(alt) }))
+    .filter((alt) => alt.price);
 
-  // Lazy-fetch dish image from backend (DDGS search + local cache).
+  // Lazy-fetch dish image from backend (search, judge, then its cache); asked once per visit.
   // restaurantName is optional — when absent the backend searches by dish name alone.
   useEffect(() => {
     let cancelled = false;
 
-    getDishImage(item.name, restaurantName)
+    getDishImage(item.name, restaurantName, {
+      translatedName: item.name_translated,
+      // The judge is told "the menu describes it as …"; a review quote there misleads it.
+      description: descriptionIsQuote ? null : item.description_translated || item.description,
+    })
       .then((data) => {
         if (!cancelled && data.image_url) {
           setImageUrl(data.image_url);
+          setImageCredit(data.attribution ?? '');
         }
       })
       .catch(() => {}); // silently fail — placeholder stays visible
@@ -75,7 +115,7 @@ export default function DishCard({
   }, [item.name, restaurantName]);
 
   return (
-    <Link href={`/dish/${encodedName}`} className={cn('block group', className)}>
+    <Link href={`/dish/${encodedName}${resultsQuery}`} className={cn('block group', className)}>
       <div className={cn(
         'rounded-2xl border border-border bg-card overflow-hidden',
         'transition-all duration-300 ease-out',
@@ -100,7 +140,9 @@ export default function DishCard({
             <img
               src={imageUrl}
               alt={item.name}
+              title={imageCredit ? `Photo: ${imageCredit}` : item.name}
               onLoad={() => setImageLoaded(true)}
+              onError={() => setImageUrl(null)}
               className={cn(
                 'absolute inset-0 w-full h-full object-cover transition-opacity duration-500',
                 imageLoaded ? 'opacity-100' : 'opacity-0',
@@ -137,10 +179,47 @@ export default function DishCard({
             )}
           </div>
 
-          {(item.description || item.description_translated) && (
+          {originalName && (
+            <p className="text-xs text-muted-foreground/80 mt-0.5 line-clamp-1">{originalName}</p>
+          )}
+
+          {displayDescription && (
             <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">
-              {(showTranslation && item.description_translated) ? item.description_translated : item.description}
+              {displayDescription}
             </p>
+          )}
+
+          {originalDescription && (
+            <p className="text-xs text-muted-foreground/70 mt-1 line-clamp-2 leading-relaxed">
+              {originalDescription}
+            </p>
+          )}
+
+          {altPrices.length > 0 && (
+            // Sources disagreeing on a price is usually the first sign one of them is out of date.
+            <p
+              className="text-[11px] text-amber-700 mt-1.5"
+              title="Prices differ between sources — the menu may have changed"
+            >
+              {altPrices.map((alt) => `${alt.source}: ${alt.price}`).join(' · ')}
+            </p>
+          )}
+
+          {sources.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {sources.map((source) => (
+                <span
+                  key={source}
+                  className={cn(
+                    'rounded-full border px-1.5 py-px text-[10px] font-medium leading-4',
+                    SOURCE_BADGES[source]?.className ?? 'bg-muted text-muted-foreground border-border'
+                  )}
+                >
+                  {SOURCE_BADGES[source]?.label ?? source}
+                  {source === 'reviews' && (item.review_mentions ?? 0) > 1 ? ` ×${item.review_mentions}` : ''}
+                </span>
+              ))}
+            </div>
           )}
         </div>
       </div>

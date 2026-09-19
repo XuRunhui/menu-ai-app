@@ -1,0 +1,759 @@
+{
+  "image_sha256": "95bc7052ba208bdbb532471e566a60ca8879b4668f4d41c7c1df1a1847b647aa",
+  "menu_id": "95bc7052ba208bdbb532471e566a60ca",
+  "restaurant_name": "The Kroft",
+  "parsed_menu": {
+    "detected_language": "English",
+    "target_language": null,
+    "menu": [
+      {
+        "category": "Poutines",
+        "category_translated": null,
+        "items": [
+          {
+            "name": "Classic",
+            "name_translated": null,
+            "price": 10.95,
+            "price_original": "$10.95",
+            "currency": "$",
+            "description": "Brown gravy, cheese curds, parsley",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Braised Beef",
+            "name_translated": null,
+            "price": 13.95,
+            "price_original": "$13.95",
+            "currency": "$",
+            "description": "5 hr braised beef, brown gravy, cheese curds, mushrooms, pickled red onions, parsley",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Country Fried Chicken",
+            "name_translated": null,
+            "price": 13.95,
+            "price_original": "$13.95",
+            "currency": "$",
+            "description": "Chicken nuggets, bacon, country sausage gravy, cheese curds, green onions",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Chicken Tikka Masala",
+            "name_translated": null,
+            "price": 13.95,
+            "price_original": "$13.95",
+            "currency": "$",
+            "description": "Chicken, jalapeno masala gravy, cheese curds, crema, cilantro",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Chicken Katsu Curry",
+            "name_translated": null,
+            "price": 13.95,
+            "price_original": "$13.95",
+            "currency": "$",
+            "description": "Panko crusted chicken, golden curry, cheese curds, pickled radish, green onions, togarashi",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Wagyu Smash Fries",
+            "name_translated": null,
+            "price": 12.95,
+            "price_original": "$12.95",
+            "currency": "$",
+            "description": "2 wagyu beef patties, grilled onions, secret sauce, american cheese, diced pickles",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Loco Moco",
+            "name_translated": null,
+            "price": 13.95,
+            "price_original": "$13.95",
+            "currency": "$",
+            "description": "2 wagyu beef patties, grilled onions, fried egg, brown gravy, cheese curds, fried onions, ketchup glaze, green onions",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Chili Cheese Fries",
+            "name_translated": null,
+            "price": 11.95,
+            "price_original": "$11.95",
+            "currency": "$",
+            "description": "Kraft chili cheese sauce, breadcrumbs, green onions",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "BBQ Wagyu Smash Fries",
+            "name_translated": null,
+            "price": 13.95,
+            "price_original": "$13.95",
+            "currency": "$",
+            "description": "2 wagyu beef patties, grilled onions, bacon, bbq sauce, american cheese, fried onions, green onions",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          }
+        ]
+      },
+      {
+        "category": "Specials",
+        "category_translated": null,
+        "items": [
+          {
+            "name": "Chicken Parmesan Poutine",
+            "name_translated": null,
+            "price": 13.95,
+            "price_original": "$13.95",
+            "currency": "$",
+            "description": "French fries, fried cheese curds, chicken nuggets, marinara sauce, parmesan cheese",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Cheese Steak Fries",
+            "name_translated": null,
+            "price": 13.95,
+            "price_original": "$13.95",
+            "currency": "$",
+            "description": "Sliced roast beef, kroft cheese sauce, grilled onions, parsley, pepperoncini peppers",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Cheese Steak Sandwich",
+            "name_translated": null,
+            "price": 13.95,
+            "price_original": "$13.95",
+            "currency": "$",
+            "description": "Potato roll, sliced roast beef, garlic mayo, grilled onions, swiss cheese",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          }
+        ]
+      },
+      {
+        "category": "Kids Menu",
+        "category_translated": null,
+        "items": [
+          {
+            "name": "8pc Nuggets with Fries",
+            "name_translated": null,
+            "price": 6.95,
+            "price_original": "$6.95",
+            "currency": "$",
+            "description": "",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Mac N' Cheese",
+            "name_translated": null,
+            "price": 5.45,
+            "price_original": "$5.45",
+            "currency": "$",
+            "description": "",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Mac N' Marinara",
+            "name_translated": null,
+            "price": 5.0,
+            "price_original": "$5",
+            "currency": "$",
+            "description": "",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Milk",
+            "name_translated": null,
+            "price": 3.0,
+            "price_original": "$3",
+            "currency": "$",
+            "description": "",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [
+              "milk"
+            ],
+            "dietary_tags": []
+          }
+        ]
+      },
+      {
+        "category": "Sandwiches",
+        "category_translated": null,
+        "items": [
+          {
+            "name": "Chicken Parmesan",
+            "name_translated": null,
+            "price": 13.95,
+            "price_original": "$13.95",
+            "currency": "$",
+            "description": "Panko crusted chicken breast, provolone cheese, marinara sauce, parmesan cheese, parsley, garlic mayo, potato roll",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Kroft Fried Chicken",
+            "name_translated": null,
+            "price": 13.95,
+            "price_original": "$13.95",
+            "currency": "$",
+            "description": "Potato roll, fried chicken breast, jalapeno coleslaw, garlic aioli, extra spicy +$1",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Braised Beef Melt",
+            "name_translated": null,
+            "price": 12.95,
+            "price_original": "$12.95",
+            "currency": "$",
+            "description": "Ciabatta, 5 hr braised beef, monterey jack, arugula, pickled red onions",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Porchetta",
+            "name_translated": null,
+            "price": 12.95,
+            "price_original": "$12.95",
+            "currency": "$",
+            "description": "Ciabatta, pork belly, loin, cracklings, arugula, caramelized onions, salsa verde",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "Cubano",
+            "name_translated": null,
+            "price": 12.95,
+            "price_original": "$12.95",
+            "currency": "$",
+            "description": "Potato roll, pulled pork, ham, pickles, swiss cheese, mustard aioli",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          },
+          {
+            "name": "French Dip",
+            "name_translated": null,
+            "price": 12.95,
+            "price_original": "$12.95",
+            "currency": "$",
+            "description": "Potato roll, sliced rotisserie beef, caramelized onions, beef au jus, horseradish aioli",
+            "description_translated": null,
+            "spicy_level": null,
+            "allergens": [],
+            "dietary_tags": []
+          }
+        ]
+      }
+    ]
+  },
+  "combo_request": {
+    "dishes": [
+      {
+        "name": "Classic",
+        "description": "Brown gravy, cheese curds, parsley",
+        "category": "Poutines"
+      },
+      {
+        "name": "Braised Beef",
+        "description": "5 hr braised beef, brown gravy, cheese curds, mushrooms, pickled red onions, parsley",
+        "category": "Poutines"
+      },
+      {
+        "name": "Country Fried Chicken",
+        "description": "Chicken nuggets, bacon, country sausage gravy, cheese curds, green onions",
+        "category": "Poutines"
+      },
+      {
+        "name": "Chicken Tikka Masala",
+        "description": "Chicken, jalapeno masala gravy, cheese curds, crema, cilantro",
+        "category": "Poutines"
+      },
+      {
+        "name": "Chicken Katsu Curry",
+        "description": "Panko crusted chicken, golden curry, cheese curds, pickled radish, green onions, togarashi",
+        "category": "Poutines"
+      },
+      {
+        "name": "Wagyu Smash Fries",
+        "description": "2 wagyu beef patties, grilled onions, secret sauce, american cheese, diced pickles",
+        "category": "Poutines"
+      },
+      {
+        "name": "Loco Moco",
+        "description": "2 wagyu beef patties, grilled onions, fried egg, brown gravy, cheese curds, fried onions, ketchup glaze, green onions",
+        "category": "Poutines"
+      },
+      {
+        "name": "Chili Cheese Fries",
+        "description": "Kraft chili cheese sauce, breadcrumbs, green onions",
+        "category": "Poutines"
+      },
+      {
+        "name": "BBQ Wagyu Smash Fries",
+        "description": "2 wagyu beef patties, grilled onions, bacon, bbq sauce, american cheese, fried onions, green onions",
+        "category": "Poutines"
+      },
+      {
+        "name": "Chicken Parmesan Poutine",
+        "description": "French fries, fried cheese curds, chicken nuggets, marinara sauce, parmesan cheese",
+        "category": "Specials"
+      },
+      {
+        "name": "Cheese Steak Fries",
+        "description": "Sliced roast beef, kroft cheese sauce, grilled onions, parsley, pepperoncini peppers",
+        "category": "Specials"
+      },
+      {
+        "name": "Cheese Steak Sandwich",
+        "description": "Potato roll, sliced roast beef, garlic mayo, grilled onions, swiss cheese",
+        "category": "Specials"
+      },
+      {
+        "name": "8pc Nuggets with Fries",
+        "description": "",
+        "category": "Kids Menu"
+      },
+      {
+        "name": "Mac N' Cheese",
+        "description": "",
+        "category": "Kids Menu"
+      },
+      {
+        "name": "Mac N' Marinara",
+        "description": "",
+        "category": "Kids Menu"
+      },
+      {
+        "name": "Milk",
+        "description": "",
+        "category": "Kids Menu"
+      },
+      {
+        "name": "Chicken Parmesan",
+        "description": "Panko crusted chicken breast, provolone cheese, marinara sauce, parmesan cheese, parsley, garlic mayo, potato roll",
+        "category": "Sandwiches"
+      },
+      {
+        "name": "Kroft Fried Chicken",
+        "description": "Potato roll, fried chicken breast, jalapeno coleslaw, garlic aioli, extra spicy +$1",
+        "category": "Sandwiches"
+      },
+      {
+        "name": "Braised Beef Melt",
+        "description": "Ciabatta, 5 hr braised beef, monterey jack, arugula, pickled red onions",
+        "category": "Sandwiches"
+      },
+      {
+        "name": "Porchetta",
+        "description": "Ciabatta, pork belly, loin, cracklings, arugula, caramelized onions, salsa verde",
+        "category": "Sandwiches"
+      },
+      {
+        "name": "Cubano",
+        "description": "Potato roll, pulled pork, ham, pickles, swiss cheese, mustard aioli",
+        "category": "Sandwiches"
+      },
+      {
+        "name": "French Dip",
+        "description": "Potato roll, sliced rotisserie beef, caramelized onions, beef au jus, horseradish aioli",
+        "category": "Sandwiches"
+      }
+    ],
+    "max_combos": 3,
+    "restaurant_name": "The Kroft"
+  },
+  "combo_response": {
+    "combos": [
+      {
+        "dishes": [
+          "Cheese Steak Fries",
+          "Chicken Parmesan"
+        ],
+        "score": 0.6992,
+        "title": "Cheese Steak Fries & Chicken Parm",
+        "explanation": "Rich, tangy fries meet crispy, saucy chicken parm. Both are indulgent but balance via acidity and crunch. Colors pop with brown, yellow, green, and red.",
+        "cultural_note": "Quebec comfort food often pairs rich mains with something crisp or acidic, like pickles or slaw, to cut the heaviness.",
+        "tip": "Share this combo to avoid overload; add a pickle on the side.",
+        "reasons": [
+          "rich balanced by tangy/fresh",
+          "crisp meets soft",
+          "colorful plate",
+          "pepperoncini pepper goes with provolone cheese"
+        ],
+        "dish_profiles": [
+          {
+            "name": "Cheese Steak Fries",
+            "role": "main",
+            "tastes": [
+              "savory",
+              "rich",
+              "tangy",
+              "spicy"
+            ],
+            "textures": [
+              "tender",
+              "creamy",
+              "saucy",
+              "crispy"
+            ],
+            "colors": [
+              "brown",
+              "yellow",
+              "green"
+            ],
+            "temperature": "hot",
+            "weight": "heavy"
+          },
+          {
+            "name": "Chicken Parmesan",
+            "role": "main",
+            "tastes": [
+              "savory",
+              "rich",
+              "tangy",
+              "umami"
+            ],
+            "textures": [
+              "crispy",
+              "tender",
+              "saucy",
+              "creamy"
+            ],
+            "colors": [
+              "golden",
+              "red",
+              "white"
+            ],
+            "temperature": "hot",
+            "weight": "heavy"
+          }
+        ],
+        "pairings": [
+          {
+            "a": "pepperoncini pepper",
+            "b": "provolone cheese",
+            "weight": 0.423,
+            "source": "flavorgraph"
+          },
+          {
+            "a": "roast beef",
+            "b": "provolone cheese",
+            "weight": 0.345,
+            "source": "flavorgraph"
+          },
+          {
+            "a": "onion",
+            "b": "potato",
+            "weight": 0.259,
+            "source": "flavorgraph"
+          }
+        ],
+        "shared_compounds": [],
+        "sources": [
+          {
+            "title": "How dishes are combined (Menuist notes)",
+            "url": "",
+            "license": "Menuist editorial (MIT)",
+            "excerpt": "Canadian and Quebec comfort food: Poutine (fries with cheese curds and gravy) is rich, salty, and soft-meets-crisp. It is eaten as a meal or shared as a side, and pairs well with something acidic or crisp such as pickles, coleslaw, or a fresh salad, or with a cold beer or soda. Smoked meat sandwiche",
+            "page": null
+          },
+          {
+            "title": "How dishes are combined (Menuist notes)",
+            "url": "",
+            "license": "Menuist editorial (MIT)",
+            "excerpt": "Mexican meals: Tacos, grilled meats, and stews come with salsas, lime, chopped onion, cilantro, and often rice and beans. Fresh salsa and lime add acidity to rich meat, and cold drinks such as agua fresca or beer cool the heat of chili.",
+            "page": null
+          },
+          {
+            "title": "Meat and three (Wikipedia)",
+            "url": "https://en.wikipedia.org/wiki/Meat_and_three",
+            "license": "CC BY-SA 4.0 (Wikipedia contributors)",
+            "excerpt": "A meat and three meal is one where the customer picks one meat and three side dishes as a fixed-price offering. Meats commonly include fried chicken, country ham, beef, country-fried steak, meatloaf, or pork chop; and sides span from vegetables such as potatoes, corn, and green beans, to macaroni an",
+            "page": null
+          }
+        ]
+      },
+      {
+        "dishes": [
+          "Chicken Parmesan Poutine",
+          "Kroft Fried Chicken"
+        ],
+        "score": 0.6341,
+        "title": "Chicken Parm Poutine & Fried Chicken",
+        "explanation": "Crispy fried chicken and saucy poutine deliver contrasting textures. Tangy and savory flavors balance the heavy weight. Green and golden hues add visual appeal.",
+        "cultural_note": "In Quebec, poutine is often paired with fried chicken or other crispy mains, plus a crisp side like coleslaw.",
+        "tip": "Order a side of coleslaw to add freshness and crunch.",
+        "reasons": [
+          "rich balanced by tangy/fresh",
+          "crisp meets soft",
+          "colorful plate",
+          "french fry goes with coleslaw"
+        ],
+        "dish_profiles": [
+          {
+            "name": "Chicken Parmesan Poutine",
+            "role": "main",
+            "tastes": [
+              "savory",
+              "rich",
+              "tangy",
+              "umami"
+            ],
+            "textures": [
+              "crispy",
+              "tender",
+              "saucy",
+              "creamy"
+            ],
+            "colors": [
+              "red",
+              "golden",
+              "white"
+            ],
+            "temperature": "hot",
+            "weight": "heavy"
+          },
+          {
+            "name": "Kroft Fried Chicken",
+            "role": "main",
+            "tastes": [
+              "savory",
+              "spicy",
+              "tangy",
+              "rich"
+            ],
+            "textures": [
+              "crispy",
+              "tender",
+              "creamy",
+              "crunchy"
+            ],
+            "colors": [
+              "golden",
+              "white",
+              "green"
+            ],
+            "temperature": "hot",
+            "weight": "heavy"
+          }
+        ],
+        "pairings": [
+          {
+            "a": "french fry",
+            "b": "coleslaw",
+            "weight": 0.38,
+            "source": "flavorgraph"
+          },
+          {
+            "a": "cheese curd",
+            "b": "potato",
+            "weight": 0.129,
+            "source": "flavorgraph"
+          },
+          {
+            "a": "french fry",
+            "b": "garlic",
+            "weight": 0.062,
+            "source": "flavorgraph"
+          }
+        ],
+        "shared_compounds": [],
+        "sources": [
+          {
+            "title": "How dishes are combined (Menuist notes)",
+            "url": "",
+            "license": "Menuist editorial (MIT)",
+            "excerpt": "Canadian and Quebec comfort food: Poutine (fries with cheese curds and gravy) is rich, salty, and soft-meets-crisp. It is eaten as a meal or shared as a side, and pairs well with something acidic or crisp such as pickles, coleslaw, or a fresh salad, or with a cold beer or soda. Smoked meat sandwiche",
+            "page": null
+          },
+          {
+            "title": "How dishes are combined (Menuist notes)",
+            "url": "",
+            "license": "Menuist editorial (MIT)",
+            "excerpt": "Mexican meals: Tacos, grilled meats, and stews come with salsas, lime, chopped onion, cilantro, and often rice and beans. Fresh salsa and lime add acidity to rich meat, and cold drinks such as agua fresca or beer cool the heat of chili.",
+            "page": null
+          },
+          {
+            "title": "Meat and three (Wikipedia)",
+            "url": "https://en.wikipedia.org/wiki/Meat_and_three",
+            "license": "CC BY-SA 4.0 (Wikipedia contributors)",
+            "excerpt": "A meat and three meal is one where the customer picks one meat and three side dishes as a fixed-price offering. Meats commonly include fried chicken, country ham, beef, country-fried steak, meatloaf, or pork chop; and sides span from vegetables such as potatoes, corn, and green beans, to macaroni an",
+            "page": null
+          }
+        ]
+      },
+      {
+        "dishes": [
+          "Cheese Steak Sandwich",
+          "Cubano"
+        ],
+        "score": 0.6525,
+        "title": "Cheesesteak & Cubano Duo",
+        "explanation": "Two hot, hefty sandwiches bring tender, juicy beef and ham with creamy swiss and crisp pickles. Tangy, savory richness meets soft bread and golden, brown, green color on one plate.",
+        "cultural_note": "Quebec comfort food loves rich, salty sandwiches with a tangy, crisp contrast. [1]",
+        "tip": "Serve with a cold soda or beer and extra pickles on the side.",
+        "reasons": [
+          "rich balanced by tangy/fresh",
+          "crisp meets soft",
+          "colorful plate",
+          "swiss cheese goes with ham"
+        ],
+        "dish_profiles": [
+          {
+            "name": "Cheese Steak Sandwich",
+            "role": "main",
+            "tastes": [
+              "savory",
+              "rich",
+              "umami",
+              "tangy"
+            ],
+            "textures": [
+              "tender",
+              "creamy",
+              "soft",
+              "juicy"
+            ],
+            "colors": [
+              "brown",
+              "white",
+              "green"
+            ],
+            "temperature": "hot",
+            "weight": "heavy"
+          },
+          {
+            "name": "Cubano",
+            "role": "main",
+            "tastes": [
+              "savory",
+              "rich",
+              "tangy",
+              "umami"
+            ],
+            "textures": [
+              "tender",
+              "crispy",
+              "creamy",
+              "juicy"
+            ],
+            "colors": [
+              "golden",
+              "brown",
+              "yellow"
+            ],
+            "temperature": "hot",
+            "weight": "heavy"
+          }
+        ],
+        "pairings": [
+          {
+            "a": "swiss cheese",
+            "b": "ham",
+            "weight": 0.351,
+            "source": "flavorgraph"
+          },
+          {
+            "a": "onion",
+            "b": "potato",
+            "weight": 0.259,
+            "source": "flavorgraph"
+          },
+          {
+            "a": "roast beef",
+            "b": "pickle",
+            "weight": 0.23,
+            "source": "flavorgraph"
+          },
+          {
+            "a": "cheese",
+            "b": "ham",
+            "weight": 0.212,
+            "source": "flavorgraph"
+          }
+        ],
+        "shared_compounds": [
+          "(2E,4E)-Octa-2,4-dienal"
+        ],
+        "sources": [
+          {
+            "title": "How dishes are combined (Menuist notes)",
+            "url": "",
+            "license": "Menuist editorial (MIT)",
+            "excerpt": "Canadian and Quebec comfort food: Poutine (fries with cheese curds and gravy) is rich, salty, and soft-meets-crisp. It is eaten as a meal or shared as a side, and pairs well with something acidic or crisp such as pickles, coleslaw, or a fresh salad, or with a cold beer or soda. Smoked meat sandwiche",
+            "page": null
+          },
+          {
+            "title": "How dishes are combined (Menuist notes)",
+            "url": "",
+            "license": "Menuist editorial (MIT)",
+            "excerpt": "Mexican meals: Tacos, grilled meats, and stews come with salsas, lime, chopped onion, cilantro, and often rice and beans. Fresh salsa and lime add acidity to rich meat, and cold drinks such as agua fresca or beer cool the heat of chili.",
+            "page": null
+          },
+          {
+            "title": "Meat and three (Wikipedia)",
+            "url": "https://en.wikipedia.org/wiki/Meat_and_three",
+            "license": "CC BY-SA 4.0 (Wikipedia contributors)",
+            "excerpt": "A meat and three meal is one where the customer picks one meat and three side dishes as a fixed-price offering. Meats commonly include fried chicken, country ham, beef, country-fried steak, meatloaf, or pork chop; and sides span from vegetables such as potatoes, corn, and green beans, to macaroni an",
+            "page": null
+          }
+        ]
+      }
+    ],
+    "cuisine": "Quebecois comfort food",
+    "knowledge_available": true,
+    "attribution": "Ingredient pairings: FlavorGraph (Apache-2.0). Dish data: Wikidata (CC0). Meal customs: Wikipedia (CC BY-SA 4.0) and Menuist notes."
+  }
+}

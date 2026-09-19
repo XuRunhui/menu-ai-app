@@ -1,7 +1,8 @@
 'use client';
 
-import { Upload, MapPin, Sparkles } from 'lucide-react';
+import { Upload, MapPin, Sparkles, PlayCircle } from 'lucide-react';
 import EntryCard from '@/components/home/EntryCard';
+import UserMenu from '@/components/layout/UserMenu';
 import { useAppContext } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
 
@@ -19,10 +20,18 @@ export default function HomePage() {
     router.push('/search?mode=places');
   };
 
+  const handleAssistant = () => {
+    router.push('/assistant');
+  };
+
   return (
     <main className="min-h-screen bg-background flex flex-col">
       {/* Decorative top border line */}
       <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+
+      <div className="w-full max-w-5xl mx-auto px-6 pt-4 flex justify-end">
+        <UserMenu />
+      </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-20">
         {/* Header */}
@@ -38,6 +47,14 @@ export default function HomePage() {
           <p className="text-muted-foreground text-lg font-light max-w-md mx-auto leading-relaxed">
             Parse any menu, discover dishes, and get personalized recommendations from restaurant reviews.
           </p>
+          <button
+            onClick={() => router.push('/demo')}
+            className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-4 py-2
+                       text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+          >
+            <PlayCircle className="h-4 w-4" />
+            Take the tour: see each part in action
+          </button>
         </div>
 
         {/* Cards grid */}
@@ -64,15 +81,15 @@ export default function HomePage() {
             <EntryCard
               icon={Sparkles}
               title="AI Assistant"
-              description="Get a personalized dining experience powered by conversational AI recommendations."
-              disabled
+              description="Tell it what you feel like and how far you'll travel — it finds the restaurant and what to order."
+              onClick={handleAssistant}
             />
           </div>
         </div>
 
         {/* Footer note */}
         <p className="mt-16 text-xs text-muted-foreground/60 opacity-0 animate-fade-slide-up stagger-5">
-          Powered by Gemini Vision · Google Places · RAG recommendations
+          Powered by DeepSeek · Google Places · FlavorGraph ingredient pairings
         </p>
       </div>
 

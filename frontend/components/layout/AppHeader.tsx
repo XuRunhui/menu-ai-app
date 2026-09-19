@@ -4,14 +4,16 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import UserMenu from './UserMenu';
 
 interface AppHeaderProps {
   showBack?: boolean;
   backHref?: string;
+  hideUserMenu?: boolean;
   className?: string;
 }
 
-export default function AppHeader({ showBack = false, backHref, className }: AppHeaderProps) {
+export default function AppHeader({ showBack = false, backHref, hideUserMenu = false, className }: AppHeaderProps) {
   const router = useRouter();
 
   const handleBack = () => {
@@ -44,7 +46,7 @@ export default function AppHeader({ showBack = false, backHref, className }: App
           Menuist
         </Link>
 
-        <div className="w-10" />
+        {hideUserMenu ? <div className="w-10" /> : <UserMenu className="min-w-10 justify-end" />}
       </div>
     </header>
   );

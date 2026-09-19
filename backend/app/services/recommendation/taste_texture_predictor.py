@@ -1,4 +1,4 @@
-"""Taste and texture prediction using a two-round Gemini workflow.
+"""Taste and texture prediction using a two-round LLM workflow.
 
 This module predicts sensory attributes for dishes using:
 1) Round 1: Menu description only
@@ -6,7 +6,7 @@ This module predicts sensory attributes for dishes using:
 
 Example Usage:
     >>> from app.services.recommendation.taste_texture_predictor import TasteTexturePredictor
-    >>> predictor = TasteTexturePredictor(api_key="AIza...")
+    >>> predictor = TasteTexturePredictor(api_key="sk-...")
     >>> round1 = await predictor.predict_round1(
     ...     dish_name="Soon Tofu Jjigae",
     ...     description="Spicy soft tofu stew with seafood"
@@ -28,8 +28,7 @@ import logging
 import re
 from typing import Dict, List, Optional
 
-from google import genai
-from google.genai import types
+from app.services.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +49,8 @@ class TasteTexturePredictor:
     """Predict taste and texture attributes for menu items.
 
     Attributes:
-        gemini_client: Gemini client for LLM inference.
-        model_name: Gemini model name used for predictions.
+        llm_client: DeepSeek client for LLM inference (None without API key).
+        model_name: DeepSeek model name used for predictions.
         taste_attributes: Allowed taste taxonomy.
         texture_attributes: Allowed texture taxonomy.
 
@@ -60,20 +59,20 @@ class TasteTexturePredictor:
         prediction is returned to keep the pipeline resilient.
     """
 
-    def __init__(self, api_key: str, model_name: str = "gemini-2.0-flash-exp"):
-        """Initialize predictor with Gemini API key.
+    def __init__(self, api_key: str, model_name: Optional[str] = None):
+        """Initialize predictor with DeepSeek API key.
 
         Args:
-            api_key: Gemini API key.
-            model_name: Gemini model name.
+            api_key: DeepSeek API key.
+            model_name: DeepSeek model name (defaults to settings.deepseek_model).
 
         Example:
-            >>> predictor = TasteTexturePredictor(api_key="AIza...", model_name="gemini-2.0-flash-exp")
+            >>> predictor = TasteTexturePredictor(api_key="sk-...", model_name="deepseek-flash")
             >>> predictor.model_name
-            'gemini-2.0-flash-exp'
+            'deepseek-flash'
         """
-        self.gemini_client = genai.Client(api_key=api_key) if api_key else None
-        self.model_name = model_name
+        self.llm_client = LLMClient(api_key=api_key, model_name=model_name) if api_key else None
+        self.model_name = self.llm_client.model_name if self.llm_client else model_name
         self.taste_attributes = TASTE_ATTRIBUTES
         self.texture_attributes = TEXTURE_ATTRIBUTES
         if not api_key:
@@ -108,16 +107,16 @@ class TasteTexturePredictor:
         prompt = self._build_round1_prompt(dish_name, description)
 
         try:
-            if self.gemini_client:
-                response = self.gemini_client.models.generate_content(
-                    model=self.model_name,
-                    contents=[types.Part.from_text(text=prompt)]
+            if self.llm_client:
+                # Round 1 sees only the menu description, so its answer is safe to cache and reuse.
+                response_text = self.llm_client.generate(
+                    prompt, json_mode=True, cache=True, purpose="taste_round1"
                 )
-                parsed = self._parse_prediction(response.text, round_number=1)
+                parsed = self._parse_prediction(response_text, round_number=1)
                 if parsed:
                     return parsed
             else:
-                logger.warning("Gemini client unavailable; using fallback prediction")
+                logger.warning("LLM client unavailable; using fallback prediction")
         except Exception as e:
             logger.error(f"Round 1 prediction failed for '{dish_name}': {e}")
 
@@ -167,12 +166,9 @@ class TasteTexturePredictor:
         )
 
         try:
-            if self.gemini_client:
-                response = self.gemini_client.models.generate_content(
-                    model=self.model_name,
-                    contents=[types.Part.from_text(text=prompt)]
-                )
-                parsed = self._parse_prediction(response.text, round_number=2)
+            if self.llm_client:
+                response_text = self.llm_client.generate(prompt, json_mode=True)
+                parsed = self._parse_prediction(response_text, round_number=2)
                 if parsed:
                     if "changes_from_round1" not in parsed:
                         parsed["changes_from_round1"] = self._build_changes_from_round1(
@@ -181,7 +177,7 @@ class TasteTexturePredictor:
                         )
                     return parsed
             else:
-                logger.warning("Gemini client unavailable; using fallback prediction")
+                logger.warning("LLM client unavailable; using fallback prediction")
         except Exception as e:
             logger.error(f"Round 2 prediction failed for '{dish_name}': {e}")
 
@@ -249,7 +245,7 @@ class TasteTexturePredictor:
         )
 
     def _parse_prediction(self, response_text: Optional[str], round_number: int) -> Optional[Dict]:
-        """Parse Gemini response text into a normalized prediction dict."""
+        """Parse LLM response text into a normalized prediction dict."""
         if not response_text:
             return None
 
@@ -461,7 +457,7 @@ if __name__ == "__main__":
     import os
 
     async def test_predictor():
-        predictor = TasteTexturePredictor(api_key=os.getenv("GEMINI_API_KEY"))
+        predictor = TasteTexturePredictor(api_key=os.getenv("DEEPSEEK_API_KEY"))
 
         round1 = await predictor.predict_round1(
             dish_name="Soon Tofu Jjigae",

@@ -1,11 +1,11 @@
 """Extract popular dishes from restaurant reviews using LLM."""
 
-from google import genai
-from google.genai import types
 import json
 import re
 from collections import Counter
 import logging
+
+from app.services.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +35,11 @@ def extract_popular_dishes(
     api_key: str,
     top_n: int = 10
 ) -> list[dict]:
-    """Extract popular dishes from reviews using Gemini LLM.
+    """Extract popular dishes from reviews using the DeepSeek LLM.
 
     Args:
         reviews: List of review text strings.
-        api_key: Gemini API key.
+        api_key: DeepSeek API key.
         top_n: Number of top popular dishes to return.
 
     Returns:
@@ -54,18 +54,14 @@ def extract_popular_dishes(
 
     logger.info(f"Extracting dishes from {len(reviews)} reviews")
 
-    # Call Gemini to extract dishes
+    # Call the LLM to extract dishes
+    result_text = ""
     try:
-        client = genai.Client(api_key=api_key)
+        client = LLMClient(api_key=api_key)
         prompt = DISH_EXTRACTION_PROMPT.format(reviews=reviews_text)
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[types.Part.from_text(text=prompt)]
-        )
-
-        result_text = response.text.strip()
-        logger.debug(f"Gemini response: {result_text[:200]}...")
+        result_text = client.generate(prompt)
+        logger.debug(f"LLM response: {result_text[:200]}...")
 
         # Parse JSON array
         # Remove markdown if present

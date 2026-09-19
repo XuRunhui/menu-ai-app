@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { Upload, FileImage, Loader2, ChevronDown, X, Store } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Upload, FileImage, Loader2, ChevronDown, X, Store, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils/cn';
 import { parseMenu } from '@/lib/api';
 import { useAppContext } from '@/context/AppContext';
+import { keepMenuCopy, menuRecord, rememberMenu } from '@/lib/localHistory';
+
+const SAMPLE_RESTAURANT = 'The Kroft';
 
 const SUPPORTED_LANGUAGES = [
   { code: null, name: 'No Translation' },
@@ -26,10 +29,13 @@ const SUPPORTED_LANGUAGES = [
 
 export default function UploadMenuPanel() {
   const router = useRouter();
-  const { setParsedMenu, setRestaurant } = useAppContext();
+  // The assistant links here with ?restaurant=… when a place's menu isn't available online,
+  // so the name doesn't have to be typed again.
+  const searchParams = useSearchParams();
+  const { openMenu } = useAppContext();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [restaurantInput, setRestaurantInput] = useState('');
+  const [restaurantInput, setRestaurantInput] = useState(searchParams.get('restaurant') ?? '');
   const [targetLanguage, setTargetLanguage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +72,23 @@ export default function UploadMenuPanel() {
 
   const handleDragLeave = () => setIsDragging(false);
 
+  // One-click demo path: load the bundled sample menu so reviewers don't need their own photo.
+  // Its reading is seeded on the server, so it opens instantly and costs nothing.
+  const sampleMenu = async () => {
+    const response = await fetch('/sample-menu.png');
+    const blob = await response.blob();
+    return new File([blob], 'sample-menu.png', { type: blob.type || 'image/png' });
+  };
+
+  const loadSampleMenu = async () => {
+    try {
+      handleFile(await sampleMenu());
+      setRestaurantInput(SAMPLE_RESTAURANT);
+    } catch {
+      setError('Could not load the sample menu.');
+    }
+  };
+
   const clearFile = () => {
     setSelectedFile(null);
     setPreview(null);
@@ -77,17 +100,45 @@ export default function UploadMenuPanel() {
       setError('Please select a menu image first.');
       return;
     }
+    await read(selectedFile, restaurantInput.trim() || null);
+  };
+
+  // The tour's first step lands here with ?demo=1: read the sample menu without asking anything.
+  const demoStarted = useRef(false);
+  useEffect(() => {
+    if (searchParams.get('demo') !== '1' || demoStarted.current) return;
+    demoStarted.current = true;
+    router.replace('/search?mode=upload'); // Back or a refresh shouldn't run it again
+    void sampleMenu()
+      .then((file) => {
+        handleFile(file);
+        setRestaurantInput(SAMPLE_RESTAURANT);
+        return read(file, SAMPLE_RESTAURANT);
+      })
+      .catch(() => setError('Could not load the sample menu.'));
+    // Runs once, on arrival from the tour.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const read = async (file: File, restaurantName: string | null) => {
     setLoading(true);
     setError(null);
 
     try {
-      const result = await parseMenu(selectedFile, targetLanguage);
-      setParsedMenu(result, targetLanguage);
-      // Store restaurant name so image fetching and ResultsHeader work
-      if (restaurantInput.trim()) {
-        setRestaurant({ place_id: '', name: restaurantInput.trim(), location: '' });
+      const result = await parseMenu(file, targetLanguage, restaurantName);
+      // The restaurant name scopes the dish photo search and titles the results page.
+      openMenu(result, targetLanguage, restaurantName);
+      if (result.menu_id) {
+        rememberMenu({
+          menuId: result.menu_id,
+          label: restaurantName || `${result.detected_language ?? 'Parsed'} menu`,
+          itemCount: result.menu.reduce((sum, category) => sum + category.items.length, 0),
+          targetLanguage,
+        });
+        keepMenuCopy(menuRecord({ ...result, menu_id: result.menu_id }, restaurantName, targetLanguage));
       }
-      router.push('/results');
+      // The menu id in the URL lets the results page survive a refresh.
+      router.push(result.menu_id ? `/results?menu=${result.menu_id}` : '/results');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse menu. Please try again.');
     } finally {
@@ -153,6 +204,17 @@ export default function UploadMenuPanel() {
           </div>
         )}
       </div>
+
+      {!selectedFile && (
+        <button
+          type="button"
+          onClick={loadSampleMenu}
+          className="w-full flex items-center justify-center gap-2 text-sm text-primary hover:underline"
+        >
+          <Sparkles className="w-4 h-4" />
+          No menu handy? Try a sample menu
+        </button>
+      )}
 
       {/* Restaurant name (optional) */}
       <div className="space-y-2">

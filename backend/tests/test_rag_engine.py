@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-pytest.importorskip("google.genai")
+pytest.importorskip("openai")
 pytest.importorskip("sentence_transformers")
 pytest.importorskip("numpy")
 
@@ -36,7 +36,7 @@ def _run(coro):
 
 def test_extract_dish_mentions():
     """Extract dish mentions from review text."""
-    engine = RAGRecommendationEngine(gemini_api_key="dummy")
+    engine = RAGRecommendationEngine(llm_api_key="dummy")
     dishes = ["Soon Tofu Jjigae", "Kimchi Pancake", "Bulgogi"]
     text = "The soon tofu was amazing! Also tried the bulgogi."
 
@@ -47,7 +47,7 @@ def test_extract_dish_mentions():
 
 def test_recommend_dishes_basic():
     """Generate recommendations without LLM enhancement."""
-    engine = RAGRecommendationEngine(gemini_api_key="dummy")
+    engine = RAGRecommendationEngine(llm_api_key="dummy")
     engine.knowledge_base_built = True
     engine.vector_store = _FakeVectorStore(
         results=[
@@ -94,7 +94,7 @@ def test_recommend_dishes_basic():
 
 def test_get_dish_context():
     """Fetch dish context from vector store."""
-    engine = RAGRecommendationEngine(gemini_api_key="dummy")
+    engine = RAGRecommendationEngine(llm_api_key="dummy")
     engine.knowledge_base_built = True
     engine.vector_store = _FakeVectorStore(
         results=[
@@ -142,7 +142,7 @@ def test_get_dish_context():
 
 def test_build_knowledge_base_stats():
     """Build knowledge base returns expected stats."""
-    engine = RAGRecommendationEngine(gemini_api_key="dummy")
+    engine = RAGRecommendationEngine(llm_api_key="dummy")
     engine.vector_store = _FakeVectorStore()
 
     async def _fake_collect_all_data(restaurant_name, location, place_id=None):

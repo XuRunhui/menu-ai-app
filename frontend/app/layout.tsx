@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
+import { AuthProvider } from "@/context/AuthContext";
+import DemoGuide from "@/components/demo/DemoGuide";
 
 export const metadata: Metadata = {
   title: "Menuist — AI Menu Guide",
@@ -15,9 +17,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased min-h-screen bg-background text-foreground">
-        <AppProvider>
-          {children}
-        </AppProvider>
+        <AuthProvider>
+          <AppProvider>
+            {children}
+            <DemoGuide />
+          </AppProvider>
+        </AuthProvider>
       </body>
     </html>
   );

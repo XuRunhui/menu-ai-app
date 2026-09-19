@@ -1,6 +1,6 @@
 """DuckDuckGo search integration for reviews and images."""
 
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 import logging
 from typing import Optional
 

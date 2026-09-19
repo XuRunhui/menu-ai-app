@@ -6,29 +6,19 @@ import sys
 
 import pytest
 
-pytest.importorskip("google.genai")
+pytest.importorskip("openai")
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.services.recommendation.taste_texture_predictor import TasteTexturePredictor  # noqa: E402
 
 
-class _FakeResponse:
-    def __init__(self, text: str):
-        self.text = text
-
-
-class _FakeModels:
+class _FakeClient:
     def __init__(self, text: str):
         self._text = text
 
-    def generate_content(self, model: str, contents: list):
-        return _FakeResponse(self._text)
-
-
-class _FakeClient:
-    def __init__(self, text: str):
-        self.models = _FakeModels(text)
+    def generate(self, prompt: str, **kwargs):
+        return self._text
 
 
 def _run(coro):
@@ -56,7 +46,7 @@ def test_parse_prediction_with_markdown():
 def test_predict_round1_parses_response():
     """Round 1 prediction uses LLM response when parseable."""
     predictor = TasteTexturePredictor(api_key="")
-    predictor.gemini_client = _FakeClient(
+    predictor.llm_client = _FakeClient(
         """{
   "tastes": ["spicy", "umami"],
   "textures": ["soft"],
@@ -74,7 +64,7 @@ def test_predict_round1_parses_response():
 def test_predict_round2_improves_confidence():
     """Round 2 prediction improves or equals confidence."""
     predictor = TasteTexturePredictor(api_key="")
-    predictor.gemini_client = _FakeClient(
+    predictor.llm_client = _FakeClient(
         """{
   "tastes": ["spicy", "umami", "rich"],
   "textures": ["soft", "tender"],
@@ -108,7 +98,7 @@ def test_predict_round2_improves_confidence():
 def test_predict_invalid_response_falls_back():
     """Invalid LLM response returns fallback prediction."""
     predictor = TasteTexturePredictor(api_key="")
-    predictor.gemini_client = _FakeClient("not valid json")
+    predictor.llm_client = _FakeClient("not valid json")
 
     result = _run(predictor.predict_round1("Spicy Ramen", "Hot noodles in spicy broth"))
     assert result["round"] == 1

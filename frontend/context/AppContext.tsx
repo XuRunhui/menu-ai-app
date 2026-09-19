@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import type { ParsedMenu } from '@/lib/types';
-import type { PlaceDetailsResponse, PopularDish } from '@/lib/api';
+import type { CombinedMenu, PlaceDetailsResponse, PopularDish, SourceResult, SourcedMenu } from '@/lib/api';
 import { buildRecommendedSet, isRecommended } from '@/lib/utils/dishMatcher';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -14,9 +14,22 @@ export interface RestaurantInfo {
   rating?: number;
   user_ratings_total?: number;
   price_level?: number;
-  photo_urls?: string[];
   website?: string;
   formatted_phone_number?: string;
+}
+
+/**
+ * A restaurant's menu as it's being assembled from its website, its reviews and any photos the
+ * diner adds. Each source is kept separately so it can be labelled, and so a
+ * later upload can be merged with everything found before it.
+ */
+export interface MenuSourcesState {
+  placeId: string;
+  /** Results per readable source; undefined while that source is still being checked. */
+  website?: SourceResult;
+  /** Menu photos the diner added, one entry per photo. */
+  uploads: SourcedMenu[];
+  combined: CombinedMenu | null;
 }
 
 interface AppState {
@@ -27,23 +40,40 @@ interface AppState {
   placeDetails: PlaceDetailsResponse | null;
   popularDishes: PopularDish[];
   recommendedDishNames: Set<string>;
-  knowledgeBaseStatus: 'idle' | 'building' | 'ready' | 'error';
+  menuSources: MenuSourcesState | null;
+  /** Set when the assistant opened this restaurant, so Back returns to the conversation. */
+  openedFrom: 'assistant' | null;
+}
+
+/** How a restaurant was opened: sources already read, and whether the assistant opened it. */
+export interface OpenPlaceOptions {
+  menuSources?: MenuSourcesState | null;
+  from?: 'assistant';
 }
 
 type AppAction =
   | { type: 'SET_ENTRY_MODE'; payload: 'upload' | 'places' }
-  | { type: 'SET_RESTAURANT'; payload: RestaurantInfo }
-  | { type: 'SET_PARSED_MENU'; payload: { menu: ParsedMenu; language: string | null } }
-  | { type: 'SET_PLACE_DETAILS'; payload: PlaceDetailsResponse }
-  | { type: 'SET_KB_STATUS'; payload: AppState['knowledgeBaseStatus'] }
+  | { type: 'UPDATE_MENU_SOURCES'; payload: (current: MenuSourcesState | null) => MenuSourcesState | null }
+  | { type: 'OPEN_PLACE'; payload: { details: PlaceDetailsResponse; options: OpenPlaceOptions } }
+  | { type: 'OPEN_MENU'; payload: { menu: ParsedMenu; language: string | null; restaurantName: string | null } }
   | { type: 'RESET' };
 
 interface AppContextValue extends AppState {
+  /**
+   * Query string identifying the current results ("?menu=12" or "?place=ChIJ...").
+   * Added to results/dish URLs so a signed-in user's page can be restored after a refresh.
+   */
+  resultsQuery: string;
   setEntryMode: (mode: 'upload' | 'places') => void;
-  setRestaurant: (info: RestaurantInfo) => void;
-  setParsedMenu: (menu: ParsedMenu, language: string | null) => void;
-  setPlaceDetails: (details: PlaceDetailsResponse) => void;
-  setKnowledgeBaseStatus: (status: AppState['knowledgeBaseStatus']) => void;
+  /** Functional update, so sources finishing at the same moment can't overwrite each other. */
+  updateMenuSources: (update: (current: MenuSourcesState | null) => MenuSourcesState | null) => void;
+  /**
+   * Show a restaurant from Google, replacing whatever was open before. `menuSources` hands over
+   * sources already read (the assistant reads the website before offering the menu).
+   */
+  openPlace: (details: PlaceDetailsResponse, options?: OpenPlaceOptions) => void;
+  /** Show an uploaded menu, replacing whatever was open before. */
+  openMenu: (menu: ParsedMenu, language: string | null, restaurantName?: string | null) => void;
   resetSession: () => void;
   checkIsRecommended: (dishName: string) => boolean;
 }
@@ -58,10 +88,25 @@ const initialState: AppState = {
   placeDetails: null,
   popularDishes: [],
   recommendedDishNames: new Set<string>(),
-  knowledgeBaseStatus: 'idle',
+  menuSources: null,
+  openedFrom: null,
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
+
+function restaurantFrom(details: PlaceDetailsResponse): RestaurantInfo {
+  const place = details.place;
+  return {
+    place_id: place.place_id,
+    name: place.name,
+    location: place.formatted_address ?? '',
+    rating: place.rating,
+    user_ratings_total: place.user_ratings_total,
+    price_level: place.price_level,
+    website: place.website,
+    formatted_phone_number: place.formatted_phone_number,
+  };
+}
 
 function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -86,49 +131,43 @@ function reducer(state: AppState, action: AppAction): AppState {
           restaurant: null,
           popularDishes: [],
           recommendedDishNames: new Set<string>(),
-          knowledgeBaseStatus: 'idle',
+          menuSources: null,
         };
       }
     }
 
-    case 'SET_RESTAURANT':
-      return { ...state, restaurant: action.payload };
+    case 'UPDATE_MENU_SOURCES':
+      return { ...state, menuSources: action.payload(state.menuSources) };
 
-    case 'SET_PARSED_MENU':
-      return {
-        ...state,
-        parsedMenu: action.payload.menu,
-        targetLanguage: action.payload.language,
-      };
-
-    case 'SET_PLACE_DETAILS': {
-      const details = action.payload;
+    // Opening a restaurant or a menu starts from nothing. Keeping anything from the previous one
+    // showed an old uploaded menu under a restaurant the assistant had just opened.
+    case 'OPEN_PLACE': {
+      const { details, options } = action.payload;
       const popularDishes = details.popular_dishes ?? [];
-      const recommendedDishNames = buildRecommendedSet(popularDishes);
-
-      const restaurant: RestaurantInfo = {
-        place_id: details.place.place_id,
-        name: details.place.name,
-        location: details.place.formatted_address ?? '',
-        rating: details.place.rating,
-        user_ratings_total: details.place.user_ratings_total,
-        price_level: details.place.price_level,
-        photo_urls: details.place.photo_urls ?? [],
-        website: details.place.website,
-        formatted_phone_number: details.place.formatted_phone_number,
-      };
-
       return {
-        ...state,
+        ...initialState,
+        entryMode: 'places',
         placeDetails: details,
+        restaurant: restaurantFrom(details),
         popularDishes,
-        recommendedDishNames,
-        restaurant: state.restaurant ?? restaurant,
+        recommendedDishNames: buildRecommendedSet(popularDishes),
+        menuSources: options.menuSources ?? null,
+        openedFrom: options.from ?? null,
       };
     }
 
-    case 'SET_KB_STATUS':
-      return { ...state, knowledgeBaseStatus: action.payload };
+    case 'OPEN_MENU': {
+      const { menu, language, restaurantName } = action.payload;
+      const name = restaurantName?.trim();
+      return {
+        ...initialState,
+        recommendedDishNames: new Set<string>(),
+        entryMode: 'upload',
+        parsedMenu: menu,
+        targetLanguage: language,
+        restaurant: name ? { place_id: '', name, location: '' } : null,
+      };
+    }
 
     case 'RESET':
       return { ...initialState, recommendedDishNames: new Set<string>() };
@@ -152,20 +191,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_ENTRY_MODE', payload: mode });
   }, []);
 
-  const setRestaurant = useCallback((info: RestaurantInfo) => {
-    dispatch({ type: 'SET_RESTAURANT', payload: info });
+  const updateMenuSources = useCallback(
+    (update: (current: MenuSourcesState | null) => MenuSourcesState | null) => {
+      dispatch({ type: 'UPDATE_MENU_SOURCES', payload: update });
+    },
+    []
+  );
+
+  const openPlace = useCallback((details: PlaceDetailsResponse, options: OpenPlaceOptions = {}) => {
+    dispatch({ type: 'OPEN_PLACE', payload: { details, options } });
   }, []);
 
-  const setParsedMenu = useCallback((menu: ParsedMenu, language: string | null) => {
-    dispatch({ type: 'SET_PARSED_MENU', payload: { menu, language } });
-  }, []);
-
-  const setPlaceDetails = useCallback((details: PlaceDetailsResponse) => {
-    dispatch({ type: 'SET_PLACE_DETAILS', payload: details });
-  }, []);
-
-  const setKnowledgeBaseStatus = useCallback((status: AppState['knowledgeBaseStatus']) => {
-    dispatch({ type: 'SET_KB_STATUS', payload: status });
+  const openMenu = useCallback((menu: ParsedMenu, language: string | null, restaurantName: string | null = null) => {
+    dispatch({ type: 'OPEN_MENU', payload: { menu, language, restaurantName } });
   }, []);
 
   const resetSession = useCallback(() => {
@@ -176,13 +214,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return isRecommended(dishName, state.recommendedDishNames);
   }, [state.recommendedDishNames]);
 
+  let resultsQuery = '';
+  if (state.parsedMenu?.menu_id) {
+    resultsQuery = `?menu=${state.parsedMenu.menu_id}`;
+  } else if (!state.parsedMenu && state.restaurant?.place_id) {
+    resultsQuery = `?place=${encodeURIComponent(state.restaurant.place_id)}`;
+  }
+
   const value: AppContextValue = {
     ...state,
+    resultsQuery,
     setEntryMode,
-    setRestaurant,
-    setParsedMenu,
-    setPlaceDetails,
-    setKnowledgeBaseStatus,
+    updateMenuSources,
+    openPlace,
+    openMenu,
     resetSession,
     checkIsRecommended,
   };

@@ -62,3 +62,16 @@ export function isRecommended(menuItemName: string, recommendedSet: Set<string>)
   }
   return false;
 }
+
+/**
+ * The review entry for a menu dish: an exact name match if there is one, otherwise the same fuzzy
+ * match that puts the "Popular" star on the card, so the quotes shown agree with the star.
+ */
+export function findPopularDish(menuItemName: string, popularDishes: PopularDish[]): PopularDish | null {
+  const name = normalize(menuItemName);
+  return (
+    popularDishes.find((dish) => normalize(dish.name) === name) ??
+    popularDishes.find((dish) => namesMatch(name, normalize(dish.name))) ??
+    null
+  );
+}
